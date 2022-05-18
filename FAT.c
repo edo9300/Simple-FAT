@@ -14,7 +14,7 @@ typedef struct DirectoryEntry {
 	char filename[256];
 	uint32_t size;
 	uint32_t first_block;
-	struct DirectoryEntry* next;
+	uint32_t next_entry;
 } DirectoryEntry;
 
 typedef enum BLOCK_TYPE {
