@@ -1,5 +1,5 @@
 CC=gcc
-CCOPTS=--std=c89 -Wall -Wextra -Wpedantic -Werror
+CCOPTS=--std=gnu89 -Wall -Wextra -Wpedantic -Werror
 AR=ar
 
 HEADERS=FAT.h\
