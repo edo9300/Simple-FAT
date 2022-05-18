@@ -1,6 +1,11 @@
 #include "FAT.h"
 #include <stddef.h>
 #include <stdint.h>
+#include <fcntl.h> /*open*/
+#include <unistd.h> /*close*/
+#include <sys/mman.h> /*mmap*/
+#include <errno.h>
+
 #ifndef NULL
 #define NULL ((void*)0)
 #endif
@@ -26,20 +31,53 @@ typedef struct FATTable {
 	DirectoryEntry entries[256];
 } FATTable;
 
-struct FATBackingDisk {
+typedef struct FATBackingDisk {
 	int mmapped_file_descriptor;
 	char* mmapped_file_memory;
 	int currently_mapped_size;
 } FATBackingDisk;
 
+static FATBackingDisk backing_disk;
+
 int initFAT(const char* diskname, int anew) {
-	(void)diskname;
-	(void)anew;
-	return -1;
+	int prev_errno;
+	int flags = O_CREAT | O_RDWR;
+	if(anew)
+		flags |= O_TRUNC;
+	backing_disk.mmapped_file_descriptor = open(diskname, flags, 0666);
+	if(backing_disk.mmapped_file_descriptor == -1)
+		return -1;
+	if(anew) {
+		if(ftruncate(backing_disk.mmapped_file_descriptor, sizeof(FATTable)) != 0)
+			return -1;
+	}
+	backing_disk.mmapped_file_memory = (char*)mmap(NULL,
+												sizeof(FATTable),
+												PROT_READ | PROT_WRITE,
+												MAP_PRIVATE | MAP_POPULATE,
+												backing_disk.mmapped_file_descriptor,
+												0);
+	if(backing_disk.mmapped_file_memory == MAP_FAILED) {
+		prev_errno = errno;
+		close(backing_disk.mmapped_file_descriptor);
+		errno = prev_errno;
+		return -1;
+	}
+	backing_disk.currently_mapped_size = sizeof(FATTable);
+	return 0;
 }
 
 int terminateFAT(void) {
-	return -1;
+	int has_err;
+	int err;
+	has_err = err = msync(backing_disk.mmapped_file_memory, backing_disk.currently_mapped_size, MS_SYNC);
+	err = munmap(backing_disk.mmapped_file_memory, backing_disk.currently_mapped_size);
+	if(err != 0)
+		has_err = err;
+	err = close(backing_disk.mmapped_file_descriptor);
+	if(err != 0)
+		has_err = err;
+	return has_err;
 }
 
 FileHandle createFileFAT(const char* filename) {

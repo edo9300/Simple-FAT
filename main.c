@@ -1,6 +1,7 @@
 #include "FAT.h"
 #include <stdio.h>
 #include <assert.h>
+#include <errno.h>
 
 int main(int argc, char** argv) {
 	int err;
@@ -10,7 +11,7 @@ int main(int argc, char** argv) {
 	}
 	err = initFAT(argv[1], 1);
 	if(err < 0) {
-		puts("failed to initialize FAT");
+		perror("failed to initialize FAT");
 		return 1;
 	}
 
