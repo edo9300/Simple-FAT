@@ -3,6 +3,13 @@
 #include <stddef.h> /*size_t*/
 typedef void* FileHandle;
 
+/*
+* Creates/opens the "virtual disk" used to store the files
+* this will then be the disk used for the lifetime of the program
+* returns 0 on success, otherwise error
+*/
+int initFAT(const char* diskname);
+
 FileHandle createFile(const char* filename);
 int eraseFile(FileHandle file);
 int write(FileHandle to, const void* in, size_t size);

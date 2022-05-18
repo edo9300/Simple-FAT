@@ -11,6 +11,11 @@ typedef struct DirectoryEntry {
 	uint32_t first_block;
 } DirectoryEntry;
 
+int initFAT(const char* diskname) {
+	(void)diskname;
+	return -1;
+}
+
 FileHandle createFile(const char* filename) {
 	(void)filename;
 	return NULL;
