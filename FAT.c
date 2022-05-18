@@ -9,7 +9,28 @@ typedef struct DirectoryEntry {
 	char filename[256];
 	uint32_t size;
 	uint32_t first_block;
+	struct DirectoryEntry* next;
 } DirectoryEntry;
+
+typedef enum BLOCK_TYPE {
+	NORMAL,
+	LAST
+} BLOCK_TYPE;
+
+typedef struct FATBlock {
+	char buffer[511];
+	BLOCK_TYPE type;
+} FATBlock;
+
+typedef struct FATTable {
+	DirectoryEntry entries[256];
+} FATTable;
+
+struct FATBackingDisk {
+	int mmapped_file_descriptor;
+	char* mmapped_file_memory;
+	int currently_mapped_size;
+} FATBackingDisk;
 
 int initFAT(const char* diskname, int anew) {
 	(void)diskname;
