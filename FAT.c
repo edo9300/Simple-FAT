@@ -16,6 +16,10 @@ int initFAT(const char* diskname) {
 	return -1;
 }
 
+int terminateFAT(void) {
+	return -1;
+}
+
 FileHandle createFile(const char* filename) {
 	(void)filename;
 	return NULL;

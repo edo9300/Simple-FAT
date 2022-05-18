@@ -10,6 +10,12 @@ typedef void* FileHandle;
 */
 int initFAT(const char* diskname);
 
+/*
+* Frees all the resources and flushes pending changes to the backing
+* file
+*/
+int terminateFAT(void);
+
 FileHandle createFile(const char* filename);
 int eraseFile(FileHandle file);
 int write(FileHandle to, const void* in, size_t size);
