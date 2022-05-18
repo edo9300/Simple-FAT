@@ -10,6 +10,8 @@
 #define NULL ((void*)0)
 #endif
 
+#define TOTAL_BLOCKS 1024
+
 typedef struct DirectoryEntry {
 	char filename[256];
 	uint32_t size;
@@ -35,6 +37,8 @@ typedef struct FATTable {
 typedef struct FATBackingDisk {
 	int mmapped_file_descriptor;
 	char* mmapped_file_memory;
+	FATTable* mapped_FAT;
+	FATBlock** mapped_Blocks;
 	int currently_mapped_size;
 } FATBackingDisk;
 
@@ -49,11 +53,11 @@ int initFAT(const char* diskname, int anew) {
 	if(backing_disk.mmapped_file_descriptor == -1)
 		return -1;
 	if(anew) {
-		if(ftruncate(backing_disk.mmapped_file_descriptor, sizeof(FATTable)) != 0)
+		if(ftruncate(backing_disk.mmapped_file_descriptor, sizeof(FATTable) + sizeof(FATBlock) * TOTAL_BLOCKS) != 0)
 			return -1;
 	}
 	backing_disk.mmapped_file_memory = (char*)mmap(NULL,
-												sizeof(FATTable),
+												   sizeof(FATTable) + sizeof(FATBlock) * TOTAL_BLOCKS,
 												PROT_READ | PROT_WRITE,
 												MAP_PRIVATE | MAP_POPULATE,
 												backing_disk.mmapped_file_descriptor,
@@ -64,7 +68,9 @@ int initFAT(const char* diskname, int anew) {
 		errno = prev_errno;
 		return -1;
 	}
-	backing_disk.currently_mapped_size = sizeof(FATTable);
+	backing_disk.mapped_FAT = (FATTable*)backing_disk.mmapped_file_memory;
+	backing_disk.mapped_Blocks = (FATBlock**)(backing_disk.mmapped_file_memory + sizeof(FATTable));
+	backing_disk.currently_mapped_size = sizeof(FATTable) + sizeof(FATBlock) * TOTAL_BLOCKS;
 	return 0;
 }
 
