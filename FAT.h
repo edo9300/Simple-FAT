@@ -16,14 +16,14 @@ int initFAT(const char* diskname);
 */
 int terminateFAT(void);
 
-FileHandle createFile(const char* filename);
-int eraseFile(FileHandle file);
-int write(FileHandle to, const void* in, size_t size);
-int read(FileHandle from, void* out, size_t size);
-int seek(FileHandle file, size_t offset, int whence);
-int createDir(const char* dirname);
-int eraseDir(const char* dirname);
-int changeDir(const char* new_dirname);
-int listDir(const char* dirname);
+FileHandle createFileFAT(const char* filename);
+int eraseFileFAT(FileHandle file);
+int writeFAT(FileHandle to, const void* in, size_t size);
+int readFAT(FileHandle from, void* out, size_t size);
+int seekFAT(FileHandle file, size_t offset, int whence);
+int createDirFAT(const char* dirname);
+int eraseDirFAT(const char* dirname);
+int changeDirFAT(const char* new_dirname);
+int listDirFAT(const char* dirname);
 
 #endif /*FAT_H*/

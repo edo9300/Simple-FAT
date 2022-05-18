@@ -20,53 +20,53 @@ int terminateFAT(void) {
 	return -1;
 }
 
-FileHandle createFile(const char* filename) {
+FileHandle createFileFAT(const char* filename) {
 	(void)filename;
 	return NULL;
 }
 
-int eraseFile(FileHandle file) {
+int eraseFileFAT(FileHandle file) {
 	(void)file;
 	return -1;
 }
 
-int write(FileHandle to, const void* in, size_t size) {
+int writeFAT(FileHandle to, const void* in, size_t size) {
 	(void)to;
 	(void)in;
 	(void)size;
 	return -1;
 }
 
-int read(FileHandle from, void* out, size_t size) {
+int readFAT(FileHandle from, void* out, size_t size) {
 	(void)from;
 	(void)out;
 	(void)size;
 	return -1;
 }
 
-int seek(FileHandle file, size_t offset, int whence) {
+int seekFAT(FileHandle file, size_t offset, int whence) {
 	(void)file;
 	(void)offset;
 	(void)whence;
 	return -1;
 }
 
-int createDir(const char* dirname) {
+int createDirFAT(const char* dirname) {
 	(void)dirname;
 	return -1;
 }
 
-int eraseDir(const char* dirname) {
+int eraseDirFAT(const char* dirname) {
 	(void)dirname;
 	return -1;
 }
 
-int changeDir(const char* new_dirname) {
+int changeDirFAT(const char* new_dirname) {
 	(void)new_dirname;
 	return -1;
 }
 
-int listDir(const char* dirname) {
+int listDirFAT(const char* dirname) {
 	(void)dirname;
 	return -1;
 }
