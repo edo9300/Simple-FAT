@@ -18,7 +18,8 @@ typedef struct DirectoryEntry {
 } DirectoryEntry;
 
 typedef enum BLOCK_TYPE {
-	NORMAL,
+	FREE,
+	USED,
 	LAST
 } BLOCK_TYPE;
 
