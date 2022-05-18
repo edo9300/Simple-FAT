@@ -8,7 +8,7 @@ typedef void* FileHandle;
 * this will then be the disk used for the lifetime of the program
 * returns 0 on success, otherwise error
 */
-int initFAT(const char* diskname);
+int initFAT(const char* diskname, int anew);
 
 /*
 * Frees all the resources and flushes pending changes to the backing

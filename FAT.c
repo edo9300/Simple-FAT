@@ -11,8 +11,9 @@ typedef struct DirectoryEntry {
 	uint32_t first_block;
 } DirectoryEntry;
 
-int initFAT(const char* diskname) {
+int initFAT(const char* diskname, int anew) {
 	(void)diskname;
+	(void)anew;
 	return -1;
 }
 

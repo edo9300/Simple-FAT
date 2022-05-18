@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
 		puts("the filename paramter for the disk is required");
 		return 1;
 	}
-	err = initFAT(argv[1]);
+	err = initFAT(argv[1], 1);
 	if(err < 0) {
 		puts("failed to initialize FAT");
 		return 1;
