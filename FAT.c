@@ -25,7 +25,7 @@ typedef enum BLOCK_TYPE {
 
 typedef struct FATBlock {
 	char buffer[511];
-	BLOCK_TYPE type;
+	uint8_t type;
 } FATBlock;
 
 typedef struct FATTable {
