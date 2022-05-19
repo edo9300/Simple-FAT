@@ -25,10 +25,10 @@ typedef enum BLOCK_TYPE {
 	LAST
 } BLOCK_TYPE;
 
-typedef struct FATBlock {
+typedef struct FileControlBlock {
 	char buffer[511];
 	uint8_t type;
-} FATBlock;
+} FileControlBlock;
 
 typedef struct FATTable {
 	DirectoryEntry entries[256];
@@ -38,7 +38,7 @@ typedef struct FATBackingDisk {
 	int mmapped_file_descriptor;
 	char* mmapped_file_memory;
 	FATTable* mapped_FAT;
-	FATBlock** mapped_Blocks;
+	FileControlBlock* mapped_Blocks;
 	int currently_mapped_size;
 } FATBackingDisk;
 
@@ -53,11 +53,11 @@ int initFAT(const char* diskname, int anew) {
 	if(backing_disk.mmapped_file_descriptor == -1)
 		return -1;
 	if(anew) {
-		if(ftruncate(backing_disk.mmapped_file_descriptor, sizeof(FATTable) + sizeof(FATBlock) * TOTAL_BLOCKS) != 0)
+		if(ftruncate(backing_disk.mmapped_file_descriptor, sizeof(FATTable) + sizeof(FileControlBlock) * TOTAL_BLOCKS) != 0)
 			return -1;
 	}
 	backing_disk.mmapped_file_memory = (char*)mmap(NULL,
-												   sizeof(FATTable) + sizeof(FATBlock) * TOTAL_BLOCKS,
+												sizeof(FATTable) + sizeof(FileControlBlock) * TOTAL_BLOCKS,
 												PROT_READ | PROT_WRITE,
 												MAP_PRIVATE | MAP_POPULATE,
 												backing_disk.mmapped_file_descriptor,
@@ -69,8 +69,8 @@ int initFAT(const char* diskname, int anew) {
 		return -1;
 	}
 	backing_disk.mapped_FAT = (FATTable*)backing_disk.mmapped_file_memory;
-	backing_disk.mapped_Blocks = (FATBlock**)(backing_disk.mmapped_file_memory + sizeof(FATTable));
-	backing_disk.currently_mapped_size = sizeof(FATTable) + sizeof(FATBlock) * TOTAL_BLOCKS;
+	backing_disk.mapped_Blocks = (FileControlBlock*)(backing_disk.mmapped_file_memory + sizeof(FATTable));
+	backing_disk.currently_mapped_size = sizeof(FATTable) + sizeof(FileControlBlock) * TOTAL_BLOCKS;
 	return 0;
 }
 
