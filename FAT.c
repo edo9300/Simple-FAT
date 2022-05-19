@@ -87,31 +87,32 @@ int terminateFAT(void) {
 	return has_err;
 }
 
-FileHandle createFileFAT(const char* filename) {
+FileHandle* createFileFAT(const char* filename, FileHandle* handle) {
 	(void)filename;
+	(void)handle;
 	return NULL;
 }
 
-int eraseFileFAT(FileHandle file) {
+int eraseFileFAT(FileHandle* file) {
 	(void)file;
 	return -1;
 }
 
-int writeFAT(FileHandle to, const void* in, size_t size) {
+int writeFAT(FileHandle* to, const void* in, size_t size) {
 	(void)to;
 	(void)in;
 	(void)size;
 	return -1;
 }
 
-int readFAT(FileHandle from, void* out, size_t size) {
+int readFAT(FileHandle* from, void* out, size_t size) {
 	(void)from;
 	(void)out;
 	(void)size;
 	return -1;
 }
 
-int seekFAT(FileHandle file, size_t offset, int whence) {
+int seekFAT(FileHandle* file, size_t offset, int whence) {
 	(void)file;
 	(void)offset;
 	(void)whence;

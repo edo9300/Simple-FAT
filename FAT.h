@@ -1,7 +1,12 @@
 #ifndef FAT_H
 #define FAT_H
 #include <stddef.h> /*size_t*/
-typedef void* FileHandle;
+#include <stdint.h>
+typedef struct FileHandle {
+	uint32_t current_pos;
+	uint32_t current_block;
+	uint32_t directory_entry;
+} FileHandle;
 
 /*
 * Creates/opens the "virtual disk" used to store the files
@@ -16,11 +21,11 @@ int initFAT(const char* diskname, int anew);
 */
 int terminateFAT(void);
 
-FileHandle createFileFAT(const char* filename);
-int eraseFileFAT(FileHandle file);
-int writeFAT(FileHandle to, const void* in, size_t size);
-int readFAT(FileHandle from, void* out, size_t size);
-int seekFAT(FileHandle file, size_t offset, int whence);
+FileHandle* createFileFAT(const char* filename, FileHandle* handle);
+int eraseFileFAT(FileHandle* file);
+int writeFAT(FileHandle* to, const void* in, size_t size);
+int readFAT(FileHandle* from, void* out, size_t size);
+int seekFAT(FileHandle* file, size_t offset, int whence);
 int createDirFAT(const char* dirname);
 int eraseDirFAT(const char* dirname);
 int changeDirFAT(const char* new_dirname);
