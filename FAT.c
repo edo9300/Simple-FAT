@@ -59,7 +59,7 @@ int initFAT(const char* diskname, int anew) {
 	backing_disk.mmapped_file_memory = (char*)mmap(NULL,
 												sizeof(FATTable) + sizeof(FileControlBlock) * TOTAL_BLOCKS,
 												PROT_READ | PROT_WRITE,
-												MAP_PRIVATE | MAP_POPULATE,
+												MAP_SHARED,
 												backing_disk.mmapped_file_descriptor,
 												0);
 	if(backing_disk.mmapped_file_memory == MAP_FAILED) {
