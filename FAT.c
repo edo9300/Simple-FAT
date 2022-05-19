@@ -4,6 +4,7 @@
 #include <fcntl.h> /*open*/
 #include <unistd.h> /*close*/
 #include <sys/mman.h> /*mmap*/
+#include <string.h>
 #include <errno.h>
 
 #ifndef NULL
@@ -87,10 +88,63 @@ int terminateFAT(void) {
 	return has_err;
 }
 
+static int findDirEntry(const char* filename, int* free) {
+	int i;
+	int found_free = -1;
+	for(i = 0; i < 256; ++i) {
+		if(*(backing_disk.mapped_FAT->entries[i].filename) == 0) {
+			if(found_free == -1)
+				found_free = i;
+			continue;
+		}
+		if(strncmp(filename, backing_disk.mapped_FAT->entries[i].filename, sizeof(backing_disk.mapped_FAT->entries[i].filename)) == 0){
+			return i;
+		}
+	}
+	*free = found_free;
+	return -1;
+}
+
+static int findFreeBlock() {
+	int i;
+	for(i = 0; i < TOTAL_BLOCKS; ++i) {
+		if(backing_disk.mapped_Blocks[i].type == FREE)
+			return i;
+	}
+	return -1;
+}
+
+static int initializeDirEntry(int entry_id, const char* filename) {
+	int new_block;
+	DirectoryEntry* entry;
+	new_block = findFreeBlock();
+	if(new_block == -1)
+		return -1;
+	entry = &backing_disk.mapped_FAT->entries[entry_id];
+	strncpy(&entry->filename[0], filename, sizeof(entry->filename));
+	entry->first_block = new_block;
+	backing_disk.mapped_Blocks[new_block].type = LAST;
+	return 0;
+}
+
 FileHandle* createFileFAT(const char* filename, FileHandle* handle) {
-	(void)filename;
-	(void)handle;
-	return NULL;
+	int free_entry;
+	int used_entry;
+	used_entry = findDirEntry(filename, &free_entry);
+	if(free_entry == -1 && used_entry == -1)
+		return NULL;
+	if(used_entry != -1) {
+		handle->current_pos = 0;
+		handle->current_block = 0;
+		handle->directory_entry = used_entry;
+	} else {
+		if(initializeDirEntry(free_entry, filename) == -1)
+			return NULL;
+		handle->current_pos = 0;
+		handle->current_block = 0;
+		handle->directory_entry = free_entry;
+	}
+	return handle;
 }
 
 int eraseFileFAT(FileHandle* file) {
