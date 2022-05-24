@@ -32,6 +32,7 @@ typedef enum BLOCK_TYPE {
 typedef struct FileBlock {
 	char buffer[BLOCK_BUFFER_SIZE];
 	uint8_t type;
+	uint32_t next_block;
 } FileBlock;
 
 typedef struct FATTable {
@@ -155,11 +156,56 @@ int eraseFileFAT(FileHandle* file) {
 	return -1;
 }
 
+static FileBlock* getCurrentBlockFromHandle(FileHandle* handle) {
+	uint32_t i;
+	DirectoryEntry* entry = &backing_disk.mapped_FAT->entries[handle->directory_entry];
+	FileBlock* matching_block = &backing_disk.mapped_Blocks[entry->first_block];
+	for(i = 0; i < handle->current_block_index; i++) {
+		if(matching_block->type == LAST)
+			return NULL;
+		matching_block = &backing_disk.mapped_Blocks[matching_block->next_block];
+	}
+	return matching_block;
+}
+
+static FileBlock* getOrAllocateNewBlock(FileBlock* cur) {
+	int new_block;
+	if(cur->type != LAST)
+		return &backing_disk.mapped_Blocks[cur->next_block];
+	new_block = findFreeBlock();
+	if(new_block == -1)
+		return NULL;
+	cur->type = USED;
+	cur->next_block = new_block;
+	backing_disk.mapped_Blocks[new_block].type = LAST;
+	return &backing_disk.mapped_Blocks[new_block];
+}
+
 int writeFAT(FileHandle* to, const void* in, size_t size) {
-	(void)to;
-	(void)in;
-	(void)size;
-	return -1;
+	size_t written = 0;
+	uint32_t pos = to->current_pos;
+	FileBlock* block = getCurrentBlockFromHandle(to);
+	char* cur = (char*)in;
+	uint32_t to_write;
+	uint32_t iterated_blocks = 0;
+	while(written < size) {
+		to_write = BLOCK_BUFFER_SIZE - pos;
+		if(to_write > (size - written))
+			to_write = size - written;
+		memcpy(block->buffer, cur, to_write);
+		pos += to_write;
+		cur += to_write;
+		written += to_write;
+		if(pos >= BLOCK_BUFFER_SIZE) {
+			pos %= BLOCK_BUFFER_SIZE;
+			if((block = getOrAllocateNewBlock(block)) == NULL)
+				break;
+			++iterated_blocks;
+		}
+	}
+	to->current_pos = pos;
+	to->current_block_index += iterated_blocks;
+	return written;
 }
 
 int readFAT(FileHandle* from, void* out, size_t size) {
