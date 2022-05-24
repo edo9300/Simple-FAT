@@ -6,7 +6,9 @@
 int main(int argc, char** argv) {
 	int err;
 	int return_code = 0;
+	char a[] = "Test string to write to the file";
 	FileHandle handle;
+	int written;
 	if(argc < 2) {
 		puts("the filename paramter for the disk is required");
 		return 1;
@@ -22,6 +24,8 @@ int main(int argc, char** argv) {
 		puts("failed to create file");
 		goto cleanup;
 	}
+	written = writeFAT(&handle, a, sizeof(a));
+	printf("total written: %d, to write were: %ld\n", written, sizeof(a));
 	
 cleanup:
 	err = terminateFAT();
