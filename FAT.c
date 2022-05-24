@@ -20,7 +20,6 @@ typedef struct DirectoryEntry {
 	char filename[DIRECTORY_ENTRY_MAX_NAME];
 	uint32_t size;
 	uint32_t first_block;
-	uint32_t next_entry;
 } DirectoryEntry;
 
 typedef enum BLOCK_TYPE {
@@ -152,8 +151,15 @@ FileHandle* createFileFAT(const char* filename, FileHandle* handle) {
 }
 
 int eraseFileFAT(FileHandle* file) {
-	(void)file;
-	return -1;
+	DirectoryEntry* entry = &backing_disk.mapped_FAT->entries[file->directory_entry];
+	FileBlock* current_block = &backing_disk.mapped_Blocks[entry->first_block];
+	while(current_block->type != LAST) {
+		current_block->type = FREE;
+		current_block = &backing_disk.mapped_Blocks[current_block->next_block];
+	}
+	current_block->type = FREE;
+	memset(entry, 0, sizeof(DirectoryEntry));
+	return 0;
 }
 
 static FileBlock* getCurrentBlockFromHandle(FileHandle* handle) {
