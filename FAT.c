@@ -11,10 +11,13 @@
 #define NULL ((void*)0)
 #endif
 
-#define TOTAL_BLOCKS 1024
+#define TOTAL_BLOCKS 2 /*1024*/
+#define BLOCK_BUFFER_SIZE 20 /*511*/
+#define DIRECTORY_ENTRY_MAX_NAME 5 /*256*/
+#define TOTAL_FAT_ENTRIES 2 /*256*/
 
 typedef struct DirectoryEntry {
-	char filename[256];
+	char filename[DIRECTORY_ENTRY_MAX_NAME];
 	uint32_t size;
 	uint32_t first_block;
 	uint32_t next_entry;
@@ -27,12 +30,12 @@ typedef enum BLOCK_TYPE {
 } BLOCK_TYPE;
 
 typedef struct FileBlock {
-	char buffer[511];
+	char buffer[BLOCK_BUFFER_SIZE];
 	uint8_t type;
 } FileBlock;
 
 typedef struct FATTable {
-	DirectoryEntry entries[256];
+	DirectoryEntry entries[TOTAL_FAT_ENTRIES];
 } FATTable;
 
 typedef struct FATBackingDisk {
@@ -91,7 +94,7 @@ int terminateFAT(void) {
 static int findDirEntry(const char* filename, int* free) {
 	int i;
 	int found_free = -1;
-	for(i = 0; i < 256; ++i) {
+	for(i = 0; i < TOTAL_FAT_ENTRIES; ++i) {
 		if(*(backing_disk.mapped_FAT->entries[i].filename) == 0) {
 			if(found_free == -1)
 				found_free = i;
