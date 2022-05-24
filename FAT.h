@@ -4,7 +4,7 @@
 #include <stdint.h>
 typedef struct FileHandle {
 	uint32_t current_pos;
-	uint32_t current_block;
+	uint32_t current_block_index;
 	uint32_t directory_entry;
 } FileHandle;
 

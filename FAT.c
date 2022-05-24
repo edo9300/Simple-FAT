@@ -138,13 +138,13 @@ FileHandle* createFileFAT(const char* filename, FileHandle* handle) {
 		return NULL;
 	if(used_entry != -1) {
 		handle->current_pos = 0;
-		handle->current_block = 0;
+		handle->current_block_index = 0;
 		handle->directory_entry = used_entry;
 	} else {
 		if(initializeDirEntry(free_entry, filename) == -1)
 			return NULL;
 		handle->current_pos = 0;
-		handle->current_block = 0;
+		handle->current_block_index = 0;
 		handle->directory_entry = free_entry;
 	}
 	return handle;
