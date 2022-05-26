@@ -7,8 +7,10 @@ int main(int argc, char** argv) {
 	int err;
 	int return_code = 0;
 	char a[] = "Test string to write to the file";
+	char b[] = "Content of file with name of bbb";
 	char read_string[512] = { 0 };
 	FileHandle handle;
+	FileHandle handle2;
 	int written;
 	int read;
 	if(argc < 2) {
@@ -26,8 +28,22 @@ int main(int argc, char** argv) {
 		puts("failed to create file");
 		goto cleanup;
 	}
-	written = writeFAT(&handle, a, sizeof(a));
-	printf("total written: %d, to write were: %ld\n", written, sizeof(a));
+
+	if(createFileFAT("bbb", &handle2) == NULL) {
+		return_code = 1;
+		puts("failed to create file");
+		goto cleanup;
+	}
+
+
+	written = writeFAT(&handle, a, 20);
+	printf("total written: %d, to write were: %d\n", written, 20);
+
+	written = writeFAT(&handle2, b, sizeof(b));
+	printf("total written to b: %d, to write were: %ld\n", written, sizeof(b));
+
+	written = writeFAT(&handle, a + 20, sizeof(a) - 20);
+	printf("total written: %d, to write were: %ld\n", written, sizeof(a) - 20);
 
 	if(createFileFAT("aaa", &handle) == NULL) {
 		return_code = 1;
