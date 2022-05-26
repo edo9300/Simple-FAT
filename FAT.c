@@ -126,6 +126,7 @@ static int initializeDirEntry(int entry_id, const char* filename) {
 	entry = &backing_disk.mapped_FAT->entries[entry_id];
 	strncpy(&entry->filename[0], filename, sizeof(entry->filename));
 	entry->first_block = new_block;
+	entry->size = 0;
 	backing_disk.mapped_Blocks[new_block].type = LAST;
 	return 0;
 }
@@ -150,9 +151,9 @@ FileHandle* createFileFAT(const char* filename, FileHandle* handle) {
 	return handle;
 }
 
-#define getDirectoryEntryFromHandle(handle) &backing_disk.mapped_FAT->entries[handle->directory_entry]
-#define getFirstBlockFromDirectoryEntry(entry) &backing_disk.mapped_Blocks[entry->first_block]
-#define getNextBlockFromBlock(block) &backing_disk.mapped_Blocks[block->next_block]
+#define getDirectoryEntryFromHandle(handle) (&backing_disk.mapped_FAT->entries[handle->directory_entry])
+#define getFirstBlockFromDirectoryEntry(entry) (&backing_disk.mapped_Blocks[entry->first_block])
+#define getNextBlockFromBlock(block) (&backing_disk.mapped_Blocks[block->next_block])
 
 int eraseFileFAT(FileHandle* file) {
 	DirectoryEntry* entry = getDirectoryEntryFromHandle(file);
@@ -193,9 +194,12 @@ static FileBlock* getOrAllocateNewBlock(FileBlock* cur) {
 	return new_block;
 }
 
+#define getAbsolutePosFromHandle(handle) (handle->current_block_index * BLOCK_BUFFER_SIZE) + handle->current_pos
+
 int writeFAT(FileHandle* to, const void* in, size_t size) {
 	size_t written = 0;
 	uint32_t pos = to->current_pos;
+	uint32_t absolute_pos = getAbsolutePosFromHandle(to);
 	FileBlock* block = getCurrentBlockFromHandle(to);
 	char* cur = (char*)in;
 	uint32_t to_write;
@@ -206,6 +210,7 @@ int writeFAT(FileHandle* to, const void* in, size_t size) {
 			to_write = size - written;
 		memcpy(block->buffer, cur, to_write);
 		pos += to_write;
+		absolute_pos += to_write;
 		cur += to_write;
 		written += to_write;
 		if(pos >= BLOCK_BUFFER_SIZE) {
@@ -217,6 +222,8 @@ int writeFAT(FileHandle* to, const void* in, size_t size) {
 	}
 	to->current_pos = pos;
 	to->current_block_index += iterated_blocks;
+	if(absolute_pos > getDirectoryEntryFromHandle(to)->size)
+		getDirectoryEntryFromHandle(to)->size = absolute_pos;
 	return written;
 }
 
