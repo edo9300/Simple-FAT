@@ -16,7 +16,7 @@
 #define DELETED_CHILD_ENTRY UINT16_MAX
 #define FREE_CHILD_ENTRY 0
 
-#define ROOT_WORKKING_DIRECTORY UINT16_MAX
+#define ROOT_WORKING_DIRECTORY UINT16_MAX
 
 typedef struct DirectoryEntry {
 	char filename[DIRECTORY_ENTRY_MAX_NAME];
@@ -82,7 +82,7 @@ int initFAT(const char* diskname, int anew) {
 	backing_disk.mapped_FAT = (FATTable*)backing_disk.mmapped_file_memory;
 	backing_disk.mapped_Blocks = (FileBlock*)(backing_disk.mmapped_file_memory + sizeof(FATTable));
 	backing_disk.currently_mapped_size = sizeof(FATTable) + sizeof(FileBlock) * TOTAL_BLOCKS;
-	backing_disk.current_working_directory = ROOT_WORKKING_DIRECTORY;
+	backing_disk.current_working_directory = ROOT_WORKING_DIRECTORY;
 	return 0;
 }
 
@@ -122,7 +122,7 @@ static int findDirEntry(const char* filename, int* free, DirectoryEntryType file
 			return i;
 		}
 	}
-	if(backing_disk.current_working_directory != ROOT_WORKKING_DIRECTORY
+	if(backing_disk.current_working_directory != ROOT_WORKING_DIRECTORY
 	   && getEntryFromIndex(backing_disk.current_working_directory)->num_children >= MAX_DIR_CHILDREN)
 		found_free = -1;
 	if(free)
@@ -208,7 +208,7 @@ int eraseFileFAT(FileHandle* file) {
 		current_block = getNextBlockFromBlock(current_block);
 	}
 	current_block->type = FREE;
-	if(entry->parent_directory != ROOT_WORKKING_DIRECTORY)
+	if(entry->parent_directory != ROOT_WORKING_DIRECTORY)
 		removeChildFromFolder(getEntryFromIndex(entry->parent_directory), file->directory_entry);
 	memset(entry, 0, sizeof(DirectoryEntry));
 	return 0;
@@ -364,7 +364,7 @@ int eraseDirFAT(const char* dirname) {
 	entry = getEntryFromIndex(entry_id);
 	if(entry->num_children > 0)
 		return -1;
-	if(entry->parent_directory != ROOT_WORKKING_DIRECTORY)
+	if(entry->parent_directory != ROOT_WORKING_DIRECTORY)
 		removeChildFromFolder(getEntryFromIndex(entry->parent_directory), entry_id);
 	memset(entry, 0, sizeof(DirectoryEntry));
 	return 0;
