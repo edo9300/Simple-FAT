@@ -266,7 +266,7 @@ int readFAT(FileHandle* from, void* out, size_t size) {
 	return total_read;
 }
 
-int seekFAT(FileHandle* file, int32_t offset, uint8_t whence) {
+int seekFAT(FileHandle* file, int32_t offset, SeekWhence whence) {
 	uint32_t new_pos;
 	if(whence > FAT_SEEK_END)
 		return -1;
