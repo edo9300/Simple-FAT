@@ -150,12 +150,16 @@ FileHandle* createFileFAT(const char* filename, FileHandle* handle) {
 	return handle;
 }
 
+#define getDirectoryEntryFromHandle(handle) &backing_disk.mapped_FAT->entries[handle->directory_entry]
+#define getFirstBlockFromDirectoryEntry(entry) &backing_disk.mapped_Blocks[entry->first_block]
+#define getNextBlockFromBlock(block) &backing_disk.mapped_Blocks[block->next_block]
+
 int eraseFileFAT(FileHandle* file) {
-	DirectoryEntry* entry = &backing_disk.mapped_FAT->entries[file->directory_entry];
-	FileBlock* current_block = &backing_disk.mapped_Blocks[entry->first_block];
+	DirectoryEntry* entry = getDirectoryEntryFromHandle(file);
+	FileBlock* current_block = getFirstBlockFromDirectoryEntry(entry);
 	while(current_block->type != LAST) {
 		current_block->type = FREE;
-		current_block = &backing_disk.mapped_Blocks[current_block->next_block];
+		current_block = getNextBlockFromBlock(current_block);
 	}
 	current_block->type = FREE;
 	memset(entry, 0, sizeof(DirectoryEntry));
@@ -164,27 +168,29 @@ int eraseFileFAT(FileHandle* file) {
 
 static FileBlock* getCurrentBlockFromHandle(FileHandle* handle) {
 	uint32_t i;
-	DirectoryEntry* entry = &backing_disk.mapped_FAT->entries[handle->directory_entry];
-	FileBlock* matching_block = &backing_disk.mapped_Blocks[entry->first_block];
+	DirectoryEntry* entry = getDirectoryEntryFromHandle(handle);
+	FileBlock* matching_block = getFirstBlockFromDirectoryEntry(entry);
 	for(i = 0; i < handle->current_block_index; i++) {
 		if(matching_block->type == LAST)
 			return NULL;
-		matching_block = &backing_disk.mapped_Blocks[matching_block->next_block];
+		matching_block = getNextBlockFromBlock(matching_block);
 	}
 	return matching_block;
 }
 
 static FileBlock* getOrAllocateNewBlock(FileBlock* cur) {
-	int new_block;
+	FileBlock* new_block;
+	int new_block_index;
 	if(cur->type != LAST)
-		return &backing_disk.mapped_Blocks[cur->next_block];
-	new_block = findFreeBlock();
-	if(new_block == -1)
+		return getNextBlockFromBlock(cur);
+	new_block_index = findFreeBlock();
+	if(new_block_index == -1)
 		return NULL;
 	cur->type = USED;
-	cur->next_block = new_block;
-	backing_disk.mapped_Blocks[new_block].type = LAST;
-	return &backing_disk.mapped_Blocks[new_block];
+	cur->next_block = new_block_index;
+	new_block = &backing_disk.mapped_Blocks[new_block_index];
+	new_block->type = LAST;
+	return new_block;
 }
 
 int writeFAT(FileHandle* to, const void* in, size_t size) {
