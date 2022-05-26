@@ -117,7 +117,7 @@ static int findDirEntry(const char* filename, int* free, DirectoryEntryType file
 		   strncmp(filename, cur_entry->filename, sizeof(cur_entry->filename)) == 0) {
 			if(cur_entry->file_type != file_type) {
 				found_free = -1;
-				break;;
+				break;
 			}
 			return i;
 		}
@@ -180,7 +180,7 @@ FileHandle* createFileFAT(const char* filename, FileHandle* handle) {
 	int free_entry;
 	int used_entry;
 	used_entry = findDirEntry(filename, &free_entry, FAT_FILE);
-	if(free_entry == -1 && used_entry == -1)
+	if(used_entry == -1 && free_entry == -1)
 		return NULL;
 	if(used_entry != -1) {
 		handle->current_pos = 0;
