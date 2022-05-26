@@ -15,6 +15,11 @@ typedef enum SeekWhence {
 	FAT_SEEK_END
 } SeekWhence;
 
+typedef enum DirectoryEntryType {
+	FAT_FILE,
+	FAT_DIRECTORY
+} DirectoryEntryType;
+
 /*
 * Creates/opens the "virtual disk" used to store the files
 * this will then be the disk used for the lifetime of the program

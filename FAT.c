@@ -7,15 +7,25 @@
 #include <string.h> /*memcpy, strncpy, strncmp*/
 #include <errno.h> /*errno*/
 
-#define TOTAL_BLOCKS 2 /*1024*/
+#define TOTAL_BLOCKS 256 /*1024*/
 #define BLOCK_BUFFER_SIZE 20 /*511*/
-#define DIRECTORY_ENTRY_MAX_NAME 5 /*256*/
-#define TOTAL_FAT_ENTRIES 2 /*256*/
+#define DIRECTORY_ENTRY_MAX_NAME 32 /*256*/
+#define TOTAL_FAT_ENTRIES 16 /*256*/
+#define MAX_DIR_CHILDREN 64
+
+#define DELETED_CHILD_ENTRY UINT16_MAX
+#define FREE_CHILD_ENTRY 0
+
+#define ROOT_WORKKING_DIRECTORY UINT16_MAX
 
 typedef struct DirectoryEntry {
 	char filename[DIRECTORY_ENTRY_MAX_NAME];
+	uint8_t file_type;
+	uint8_t num_children;
+	uint16_t parent_directory;
 	uint32_t size;
 	uint32_t first_block;
+	uint16_t children[MAX_DIR_CHILDREN];
 } DirectoryEntry;
 
 typedef enum BLOCK_TYPE {
@@ -40,6 +50,7 @@ typedef struct FATBackingDisk {
 	FATTable* mapped_FAT;
 	FileBlock* mapped_Blocks;
 	int currently_mapped_size;
+	uint16_t current_working_directory;
 } FATBackingDisk;
 
 static FATBackingDisk backing_disk;
@@ -71,6 +82,7 @@ int initFAT(const char* diskname, int anew) {
 	backing_disk.mapped_FAT = (FATTable*)backing_disk.mmapped_file_memory;
 	backing_disk.mapped_Blocks = (FileBlock*)(backing_disk.mmapped_file_memory + sizeof(FATTable));
 	backing_disk.currently_mapped_size = sizeof(FATTable) + sizeof(FileBlock) * TOTAL_BLOCKS;
+	backing_disk.current_working_directory = ROOT_WORKKING_DIRECTORY;
 	return 0;
 }
 
@@ -87,20 +99,34 @@ int terminateFAT(void) {
 	return has_err;
 }
 
-static int findDirEntry(const char* filename, int* free) {
+#define getEntryFromIndex(index) (&backing_disk.mapped_FAT->entries[index])
+#define getBlockFromIndex(index) (&backing_disk.mapped_Blocks[index])
+
+static int findDirEntry(const char* filename, int* free, DirectoryEntryType file_type) {
+	DirectoryEntry* cur_entry;
 	int i;
 	int found_free = -1;
 	for(i = 0; i < TOTAL_FAT_ENTRIES; ++i) {
-		if(*(backing_disk.mapped_FAT->entries[i].filename) == 0) {
+		cur_entry = getEntryFromIndex(i);
+		if(cur_entry->filename[0] == 0) {
 			if(found_free == -1)
 				found_free = i;
 			continue;
 		}
-		if(strncmp(filename, backing_disk.mapped_FAT->entries[i].filename, sizeof(backing_disk.mapped_FAT->entries[i].filename)) == 0){
+		if(cur_entry->parent_directory == backing_disk.current_working_directory &&
+		   strncmp(filename, cur_entry->filename, sizeof(cur_entry->filename)) == 0) {
+			if(cur_entry->file_type != file_type) {
+				found_free = -1;
+				break;;
+			}
 			return i;
 		}
 	}
-	*free = found_free;
+	if(backing_disk.current_working_directory != ROOT_WORKKING_DIRECTORY
+	   && getEntryFromIndex(backing_disk.current_working_directory)->num_children >= MAX_DIR_CHILDREN)
+		found_free = -1;
+	if(free)
+		*free = found_free;
 	return -1;
 }
 
@@ -113,27 +139,32 @@ static int findFreeBlock() {
 	return -1;
 }
 
-#define getEntryFromIndex(index) (&backing_disk.mapped_FAT->entries[index])
-#define getBlockFromIndex(index) (&backing_disk.mapped_Blocks[index])
-
-static int initializeDirEntry(int entry_id, const char* filename) {
-	int new_block;
+static int initializeDirEntry(int entry_id, const char* filename, DirectoryEntryType file_type) {
+	int new_block = 0;
 	DirectoryEntry* entry;
-	new_block = findFreeBlock();
-	if(new_block == -1)
-		return -1;
+	if(file_type != FAT_DIRECTORY) {
+		new_block = findFreeBlock();
+		if(new_block == -1)
+			return -1;
+		backing_disk.mapped_Blocks[new_block].type = LAST;
+	}
 	entry = getEntryFromIndex(entry_id);
 	strncpy(&entry->filename[0], filename, sizeof(entry->filename));
 	entry->first_block = new_block;
 	entry->size = 0;
-	backing_disk.mapped_Blocks[new_block].type = LAST;
+	entry->file_type = file_type;
+	entry->parent_directory = backing_disk.current_working_directory;
+	if(file_type == FAT_DIRECTORY) {
+		entry->num_children = 0;
+		memset(entry->children, 0, sizeof(entry->children));
+	}
 	return 0;
 }
 
 FileHandle* createFileFAT(const char* filename, FileHandle* handle) {
 	int free_entry;
 	int used_entry;
-	used_entry = findDirEntry(filename, &free_entry);
+	used_entry = findDirEntry(filename, &free_entry, FAT_FILE);
 	if(free_entry == -1 && used_entry == -1)
 		return NULL;
 	if(used_entry != -1) {
@@ -141,7 +172,7 @@ FileHandle* createFileFAT(const char* filename, FileHandle* handle) {
 		handle->current_block_index = 0;
 		handle->directory_entry = used_entry;
 	} else {
-		if(initializeDirEntry(free_entry, filename) == -1)
+		if(initializeDirEntry(free_entry, filename, FAT_FILE) == -1)
 			return NULL;
 		handle->current_pos = 0;
 		handle->current_block_index = 0;
@@ -155,6 +186,8 @@ FileHandle* createFileFAT(const char* filename, FileHandle* handle) {
 #define getNextBlockFromBlock(block) getBlockFromIndex(block->next_block)
 
 int eraseFileFAT(FileHandle* file) {
+	int i;
+	DirectoryEntry* parent;
 	DirectoryEntry* entry = getDirectoryEntryFromHandle(file);
 	FileBlock* current_block = getFirstBlockFromDirectoryEntry(entry);
 	while(current_block->type != LAST) {
@@ -162,6 +195,15 @@ int eraseFileFAT(FileHandle* file) {
 		current_block = getNextBlockFromBlock(current_block);
 	}
 	current_block->type = FREE;
+	if(entry->parent_directory != ROOT_WORKKING_DIRECTORY) {
+		parent = getEntryFromIndex(entry->parent_directory);
+		for(i = 0; i < MAX_DIR_CHILDREN; ++i) {
+			if(parent->children[i] == file->directory_entry) {
+				parent->children[i] = DELETED_CHILD_ENTRY;
+				break;
+			}
+		}
+	}
 	memset(entry, 0, sizeof(DirectoryEntry));
 	return 0;
 }
@@ -298,13 +340,37 @@ int seekFAT(FileHandle* file, int32_t offset, SeekWhence whence) {
 }
 
 int createDirFAT(const char* dirname) {
-	(void)dirname;
-	return -1;
+	int free_entry;
+	int used_entry;
+	used_entry = findDirEntry(dirname, &free_entry, FAT_DIRECTORY);
+	if(free_entry == -1 && used_entry == -1)
+		return -1;
+	if(used_entry != -1)
+		return 0;
+	return initializeDirEntry(free_entry, dirname, FAT_DIRECTORY);
 }
 
 int eraseDirFAT(const char* dirname) {
-	(void)dirname;
-	return -1;
+	int entry_id = findDirEntry(dirname, NULL, FAT_DIRECTORY);
+	DirectoryEntry* parent;
+	DirectoryEntry* entry;
+	int i;
+	if(entry_id == -1)
+		return -1;
+	entry = getEntryFromIndex(entry_id);
+	if(entry->num_children > 0)
+		return -1;
+	if(entry->parent_directory != ROOT_WORKKING_DIRECTORY) {
+		parent = getEntryFromIndex(entry->parent_directory);
+		for(i = 0; i < MAX_DIR_CHILDREN; ++i) {
+			if(parent->children[i] == entry_id) {
+				parent->children[i] = DELETED_CHILD_ENTRY;
+				break;
+			}
+		}
+	}
+	memset(entry, 0, sizeof(DirectoryEntry));
+	return 0;
 }
 
 int changeDirFAT(const char* new_dirname) {
