@@ -1,7 +1,8 @@
 #ifndef FAT_H
 #define FAT_H
-#include <stddef.h> /*size_t*/
-#include <stdint.h>
+#include <stddef.h> /*size_t, NULL*/
+#include <stdint.h> /*int_t types*/
+
 typedef struct FileHandle {
 	uint32_t current_pos;
 	uint32_t current_block_index;

@@ -1,15 +1,11 @@
 #include "FAT.h"
-#include <stddef.h>
-#include <stdint.h>
+#include <stddef.h> /*size_t, NULL*/
+#include <stdint.h> /*int_t types*/
 #include <fcntl.h> /*open*/
-#include <unistd.h> /*close*/
-#include <sys/mman.h> /*mmap*/
-#include <string.h>
-#include <errno.h>
-
-#ifndef NULL
-#define NULL ((void*)0)
-#endif
+#include <unistd.h> /*close, ftruncate*/
+#include <sys/mman.h> /*mmap, munmap, msync*/
+#include <string.h> /*memcpy, strncpy, strncmp*/
+#include <errno.h> /*errno*/
 
 #define TOTAL_BLOCKS 2 /*1024*/
 #define BLOCK_BUFFER_SIZE 20 /*511*/
