@@ -46,6 +46,7 @@ int seekFAT(FileHandle* file, int32_t offset, SeekWhence whence);
 int createDirFAT(const char* dirname);
 int eraseDirFAT(const char* dirname);
 int changeDirFAT(const char* new_dirname);
-const DirectoryElement* listDirFAT();
+DirectoryElement* listDirFAT();
+void freeDirList(DirectoryElement* list);
 
 #endif /*FAT_H*/

@@ -6,11 +6,12 @@
 #include <sys/mman.h> /*mmap, munmap, msync*/
 #include <string.h> /*memcpy, strncpy, strncmp*/
 #include <errno.h> /*errno*/
+#include <malloc.h> /*malloc*/
 
-#define TOTAL_BLOCKS 256 /*1024*/
-#define BLOCK_BUFFER_SIZE 20 /*511*/
-#define DIRECTORY_ENTRY_MAX_NAME 32 /*256*/
-#define TOTAL_FAT_ENTRIES 16 /*256*/
+#define TOTAL_BLOCKS 1024
+#define BLOCK_BUFFER_SIZE 511
+#define DIRECTORY_ENTRY_MAX_NAME 256
+#define TOTAL_FAT_ENTRIES 256
 #define MAX_DIR_CHILDREN 64
 
 #define DELETED_CHILD_ENTRY UINT16_MAX
@@ -406,9 +407,15 @@ int changeDirFAT(const char* new_dirname) {
 	return 0;
 }
 
-static DirectoryElement folders[MAX_DIR_CHILDREN + 1];
+static DirectoryElement tmp_folders[MAX_DIR_CHILDREN + 1];
 
-static const DirectoryElement* getFoldersFromRoot() {
+static DirectoryElement* copyBufferToHeapAllocatedArray(const DirectoryElement* folders, size_t size) {
+	DirectoryElement* arr = (DirectoryElement*)malloc(size * sizeof(DirectoryElement));
+	memcpy(arr, folders, size * sizeof(DirectoryElement));
+	return arr;
+}
+
+static DirectoryElement* getFoldersFromRoot() {
 	DirectoryEntry* cur_entry;
 	int i;
 	int populated = 0;
@@ -418,14 +425,15 @@ static const DirectoryElement* getFoldersFromRoot() {
 			continue;
 		if(cur_entry->parent_directory != ROOT_WORKING_DIRECTORY)
 			continue;
-		folders[populated].filename = cur_entry->filename;
-		folders[populated].file_type = (DirectoryEntryType)cur_entry->file_type;
+		tmp_folders[populated].filename = cur_entry->filename;
+		tmp_folders[populated].file_type = (DirectoryEntryType)cur_entry->file_type;
 		++populated;
 	}
-	return folders;
+	tmp_folders[populated].filename = NULL;
+	return copyBufferToHeapAllocatedArray(tmp_folders, populated + 1);
 }
 
-const DirectoryElement* listDirFAT() {
+DirectoryElement* listDirFAT() {
 	int i;
 	DirectoryEntry* current_directory;
 	DirectoryEntry* current_child_entry;
@@ -435,11 +443,16 @@ const DirectoryElement* listDirFAT() {
 	for(i = 0; i < current_directory->num_children;) {
 		if(current_directory->children[i] != DELETED_CHILD_ENTRY) {
 			current_child_entry = getEntryFromIndex(current_directory->children[i]);
-			folders[i].filename = current_child_entry->filename;
-			folders[i].file_type = (DirectoryEntryType)current_child_entry->file_type;
+			tmp_folders[i].filename = current_child_entry->filename;
+			tmp_folders[i].file_type = (DirectoryEntryType)current_child_entry->file_type;
 		}
 		++i;
 	}
-	folders[i].filename = NULL;
-	return folders;
+	tmp_folders[i].filename = NULL;
+	return copyBufferToHeapAllocatedArray(tmp_folders, i + 1);
 }
+
+void freeDirList(DirectoryElement* list) {
+	free(list);
+}
+

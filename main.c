@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
 	char read_string[512] = { 0 };
 	FileHandle handle;
 	FileHandle handle2;
-	const DirectoryElement* contents;
+	DirectoryElement* contents;
 	int written;
 	int read;
 	if(argc < 2) {
@@ -104,6 +104,7 @@ int main(int argc, char** argv) {
 
 	contents = listDirFAT();
 	printFolderContents(contents);
+	freeDirList(contents);
 
 	changeDirFAT("this is a folder");
 
@@ -121,6 +122,7 @@ int main(int argc, char** argv) {
 
 	contents = listDirFAT();
 	printFolderContents(contents);
+	freeDirList(contents);
 	
 cleanup:
 	err = terminateFAT();
