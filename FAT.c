@@ -212,7 +212,7 @@ int writeFAT(FileHandle* to, const void* in, size_t size) {
 		to_write = BLOCK_BUFFER_SIZE - pos;
 		if(to_write > (size - written))
 			to_write = size - written;
-		memcpy(block->buffer, cur, to_write);
+		memcpy(block->buffer + pos, cur, to_write);
 		pos += to_write;
 		absolute_pos += to_write;
 		cur += to_write;
@@ -246,7 +246,7 @@ int readFAT(FileHandle* from, void* out, size_t size) {
 		to_read = BLOCK_BUFFER_SIZE - pos;
 		if(to_read > (size - total_read))
 			to_read = size - total_read;
-		memcpy(cur, block->buffer, to_read);
+		memcpy(cur, block->buffer + pos, to_read);
 		pos += to_read;
 		absolute_pos += to_read;
 		cur += to_read;
