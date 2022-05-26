@@ -8,7 +8,9 @@ OBJS=FAT.o\
 
 LIBS=libfat.a
 
-BINS=fat_test
+BINS=fat_test\
+	directory_copy\
+	directory_expand
 
 .phony: clean all
 
@@ -23,6 +25,12 @@ libfat.a: $(OBJS) $(HEADERS)
 	$(RM) $(OBJS)
 
 fat_test:		main.c $(LIBS)
+	$(CC) $(CCOPTS) -o $@ $^
+
+directory_copy:		directory_copy.c $(LIBS)
+	$(CC) $(CCOPTS) -o $@ $^
+
+directory_expand:		directory_expand.c $(LIBS)
 	$(CC) $(CCOPTS) -o $@ $^
 
 clean:
