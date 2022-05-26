@@ -386,8 +386,24 @@ int eraseDirFAT(const char* dirname) {
 }
 
 int changeDirFAT(const char* new_dirname) {
-	(void)new_dirname;
-	return -1;
+	int entry_id;
+	/* Go up 1 folder */
+	if(new_dirname[0] == '.' && new_dirname[1] == '.' && new_dirname[2] == '\0') {
+		if(backing_disk.current_working_directory == ROOT_WORKING_DIRECTORY)
+			return -1;
+		backing_disk.current_working_directory = getEntryFromIndex(backing_disk.current_working_directory)->parent_directory;
+		return 0;
+	}
+	/* Set working directory to root */
+	if((new_dirname[0] == '/' || new_dirname[0] == '\\') && new_dirname[1] == '\0') {
+		backing_disk.current_working_directory = ROOT_WORKING_DIRECTORY;
+		return 0;
+	}
+	entry_id = findDirEntry(new_dirname, NULL, FAT_DIRECTORY);
+	if(entry_id == -1)
+		return -1;
+	backing_disk.current_working_directory = entry_id;
+	return 0;
 }
 
 int listDirFAT(const char* dirname) {
