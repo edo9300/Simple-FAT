@@ -185,9 +185,22 @@ FileHandle* createFileFAT(const char* filename, FileHandle* handle) {
 #define getFirstBlockFromDirectoryEntry(entry) getBlockFromIndex(entry->first_block)
 #define getNextBlockFromBlock(block) getBlockFromIndex(block->next_block)
 
-int eraseFileFAT(FileHandle* file) {
+static void removeChildFromFolder(DirectoryEntry* parent, uint16_t child) {
 	int i;
-	DirectoryEntry* parent;
+	uint16_t* cur_child;
+	for(i = 0; i < MAX_DIR_CHILDREN; ++i) {
+		cur_child = &(parent->children[i]);
+		if(*cur_child == child) {
+			*cur_child = DELETED_CHILD_ENTRY;
+			break;
+		}
+		if(*cur_child == FREE_CHILD_ENTRY)
+			break;
+	}
+}
+
+
+int eraseFileFAT(FileHandle* file) {
 	DirectoryEntry* entry = getDirectoryEntryFromHandle(file);
 	FileBlock* current_block = getFirstBlockFromDirectoryEntry(entry);
 	while(current_block->type != LAST) {
@@ -195,15 +208,8 @@ int eraseFileFAT(FileHandle* file) {
 		current_block = getNextBlockFromBlock(current_block);
 	}
 	current_block->type = FREE;
-	if(entry->parent_directory != ROOT_WORKKING_DIRECTORY) {
-		parent = getEntryFromIndex(entry->parent_directory);
-		for(i = 0; i < MAX_DIR_CHILDREN; ++i) {
-			if(parent->children[i] == file->directory_entry) {
-				parent->children[i] = DELETED_CHILD_ENTRY;
-				break;
-			}
-		}
-	}
+	if(entry->parent_directory != ROOT_WORKKING_DIRECTORY)
+		removeChildFromFolder(getEntryFromIndex(entry->parent_directory), file->directory_entry);
 	memset(entry, 0, sizeof(DirectoryEntry));
 	return 0;
 }
@@ -352,23 +358,14 @@ int createDirFAT(const char* dirname) {
 
 int eraseDirFAT(const char* dirname) {
 	int entry_id = findDirEntry(dirname, NULL, FAT_DIRECTORY);
-	DirectoryEntry* parent;
 	DirectoryEntry* entry;
-	int i;
 	if(entry_id == -1)
 		return -1;
 	entry = getEntryFromIndex(entry_id);
 	if(entry->num_children > 0)
 		return -1;
-	if(entry->parent_directory != ROOT_WORKKING_DIRECTORY) {
-		parent = getEntryFromIndex(entry->parent_directory);
-		for(i = 0; i < MAX_DIR_CHILDREN; ++i) {
-			if(parent->children[i] == entry_id) {
-				parent->children[i] = DELETED_CHILD_ENTRY;
-				break;
-			}
-		}
-	}
+	if(entry->parent_directory != ROOT_WORKKING_DIRECTORY)
+		removeChildFromFolder(getEntryFromIndex(entry->parent_directory), entry_id);
 	memset(entry, 0, sizeof(DirectoryEntry));
 	return 0;
 }
