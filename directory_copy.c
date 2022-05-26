@@ -41,7 +41,7 @@ static int insertDirectory(char* name) {
 	DIR* directory;
 	struct dirent* cur_dir;
 	struct stat current_file_stat;
-	int err;
+	int err = 0;
 	if(chdir(name) != 0) {
 		fprintf(stderr, "failed to change directory to %s: %s\n", name, strerror(errno));
 		return -1;
@@ -77,10 +77,10 @@ static int insertDirectory(char* name) {
 		if(err != 0)
 			break;
 	}
-	closedir(directory);
 	if(chdir("..") != 0) {
 		assert(0 && "failed to change to parent directory");
 	}
+	closedir(directory);
 	return err;
 }
 
