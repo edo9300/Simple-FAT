@@ -453,6 +453,7 @@ DirectoryElement* listDirFAT() {
 }
 
 void freeDirList(DirectoryElement* list) {
-	free(list);
+	if(list)
+		free(list);
 }
 
