@@ -406,7 +406,40 @@ int changeDirFAT(const char* new_dirname) {
 	return 0;
 }
 
-int listDirFAT(const char* dirname) {
-	(void)dirname;
-	return -1;
+static DirectoryElement folders[MAX_DIR_CHILDREN + 1];
+
+static const DirectoryElement* getFoldersFromRoot() {
+	DirectoryEntry* cur_entry;
+	int i;
+	int populated = 0;
+	for(i = 0; i < TOTAL_FAT_ENTRIES && populated < MAX_DIR_CHILDREN; ++i) {
+		cur_entry = getEntryFromIndex(i);
+		if(cur_entry->filename[0] == 0)
+			continue;
+		if(cur_entry->parent_directory != ROOT_WORKING_DIRECTORY)
+			continue;
+		folders[populated].filename = cur_entry->filename;
+		folders[populated].file_type = (DirectoryEntryType)cur_entry->file_type;
+		++populated;
+	}
+	return folders;
+}
+
+const DirectoryElement* listDirFAT() {
+	int i;
+	DirectoryEntry* current_directory;
+	DirectoryEntry* current_child_entry;
+	if(backing_disk.current_working_directory == ROOT_WORKING_DIRECTORY)
+		return getFoldersFromRoot();
+	current_directory = getEntryFromIndex(backing_disk.current_working_directory);
+	for(i = 0; i < current_directory->num_children;) {
+		if(current_directory->children[i] != DELETED_CHILD_ENTRY) {
+			current_child_entry = getEntryFromIndex(current_directory->children[i]);
+			folders[i].filename = current_child_entry->filename;
+			folders[i].file_type = (DirectoryEntryType)current_child_entry->file_type;
+		}
+		++i;
+	}
+	folders[i].filename = NULL;
+	return folders;
 }

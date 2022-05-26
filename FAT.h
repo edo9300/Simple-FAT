@@ -20,6 +20,11 @@ typedef enum DirectoryEntryType {
 	FAT_DIRECTORY
 } DirectoryEntryType;
 
+typedef struct DirectoryElement {
+	const char* filename;
+	DirectoryEntryType file_type;
+} DirectoryElement;
+
 /*
 * Creates/opens the "virtual disk" used to store the files
 * this will then be the disk used for the lifetime of the program
@@ -41,6 +46,6 @@ int seekFAT(FileHandle* file, int32_t offset, SeekWhence whence);
 int createDirFAT(const char* dirname);
 int eraseDirFAT(const char* dirname);
 int changeDirFAT(const char* new_dirname);
-int listDirFAT(const char* dirname);
+const DirectoryElement* listDirFAT();
 
 #endif /*FAT_H*/
