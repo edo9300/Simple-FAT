@@ -1,7 +1,6 @@
 #include "FAT.h"
 #include <stdio.h>
 #include <assert.h>
-#include <errno.h>
 
 static void printFolderContents(const DirectoryElement* contents) {
 	const DirectoryElement* cur_element;
