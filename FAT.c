@@ -193,6 +193,7 @@ static FileBlock* getOrAllocateNewBlock(FileBlock* cur) {
 	cur->type = USED;
 	cur->next_block = new_block_index;
 	new_block = getBlockFromIndex(new_block_index);
+	memset(new_block, 0, sizeof(new_block->buffer));
 	new_block->type = LAST;
 	return new_block;
 }
