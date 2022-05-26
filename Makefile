@@ -1,5 +1,5 @@
 CC=gcc
-CCOPTS=--std=c89 -Wall -Wextra -Wpedantic -Wc++-compat -Werror -D_POSIX_C_SOURCE=200112L
+CCOPTS=--std=c89 -Wall -Wextra -Wpedantic -Wc++-compat -Werror -D_POSIX_C_SOURCE=200112L -g
 AR=ar
 
 HEADERS=FAT.h\
