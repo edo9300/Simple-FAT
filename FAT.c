@@ -232,10 +232,35 @@ int writeFAT(FileHandle* to, const void* in, size_t size) {
 }
 
 int readFAT(FileHandle* from, void* out, size_t size) {
-	(void)from;
-	(void)out;
-	(void)size;
-	return -1;
+	uint32_t absolute_pos = getAbsolutePosFromHandle(from);
+	uint32_t file_size = getTotalSizeFromHandle(from);
+	uint32_t total_read = 0;
+	FileBlock* block = getCurrentBlockFromHandle(from);
+	char* cur = (char*)out;
+	uint32_t to_read;
+	uint32_t iterated_blocks = 0;
+	uint32_t pos = from->current_pos;
+	if((absolute_pos + size) > file_size)
+		size = file_size - absolute_pos;
+	while(total_read < size) {
+		to_read = BLOCK_BUFFER_SIZE - pos;
+		if(to_read > (size - total_read))
+			to_read = size - total_read;
+		memcpy(cur, block->buffer, to_read);
+		pos += to_read;
+		absolute_pos += to_read;
+		cur += to_read;
+		total_read += to_read;
+		if(pos >= BLOCK_BUFFER_SIZE) {
+			pos %= BLOCK_BUFFER_SIZE;
+			if((block = getOrAllocateNewBlock(block)) == NULL)
+				break;
+			++iterated_blocks;
+		}
+	}
+	from->current_pos = pos;
+	from->current_block_index += iterated_blocks;
+	return total_read;
 }
 
 int seekFAT(FileHandle* file, size_t offset, int whence) {
