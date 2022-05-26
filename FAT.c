@@ -201,6 +201,12 @@ static FileBlock* getOrAllocateNewBlock(FileBlock* cur) {
 #define getAbsolutePosFromHandle(handle) ((handle->current_block_index * BLOCK_BUFFER_SIZE) + handle->current_pos)
 #define getTotalSizeFromHandle(handle) (getDirectoryEntryFromHandle(handle)->size)
 
+#define updateFileHandlePositionFromAbsolutePosition(handle, absolute_pos)\
+do {\
+	handle->current_block_index = absolute_pos / BLOCK_BUFFER_SIZE;\
+	handle->current_pos = absolute_pos % BLOCK_BUFFER_SIZE;\
+} while(0)
+
 int writeFAT(FileHandle* to, const void* in, size_t size) {
 	size_t written = 0;
 	uint32_t pos = to->current_pos;
@@ -264,11 +270,35 @@ int readFAT(FileHandle* from, void* out, size_t size) {
 	return total_read;
 }
 
-int seekFAT(FileHandle* file, size_t offset, int whence) {
-	(void)file;
-	(void)offset;
-	(void)whence;
-	return -1;
+int seekFAT(FileHandle* file, int32_t offset, uint8_t whence) {
+	uint32_t new_pos;
+	if(whence > FAT_SEEK_END)
+		return -1;
+	switch(whence) {
+		case FAT_SEEK_SET:
+			if(offset < 0)
+				return -1;
+			new_pos = offset;
+			break;
+		case FAT_SEEK_CUR: {
+			new_pos = getAbsolutePosFromHandle(file) + offset;
+			if(new_pos > getTotalSizeFromHandle(file))
+				return -1;
+			break;
+		}
+		case FAT_SEEK_END: {
+			if(offset > 0)
+				return -1;
+			new_pos = getTotalSizeFromHandle(file);
+			new_pos += offset;
+			/*underflow*/
+			if(new_pos > getTotalSizeFromHandle(file))
+				return -1;
+			break;
+		}
+	}
+	updateFileHandlePositionFromAbsolutePosition(file, new_pos);
+	return 0;
 }
 
 int createDirFAT(const char* dirname) {
