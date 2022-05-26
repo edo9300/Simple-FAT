@@ -84,6 +84,24 @@ int main(int argc, char** argv) {
 	read = readFAT(&handle, read_string, sizeof(read_string));
 	read_string[read] = 0;
 	printf("total read after seeking with end: %d, to read were: %ld, read content: \"%s\"\n", read, sizeof(read_string), read_string);
+
+	if(createDirFAT("folder") == -1) {
+		return_code = 1;
+		puts("failed to create folder");
+		goto cleanup;
+	}
+
+	if(eraseFileFAT(&handle) == -1) {
+		return_code = 1;
+		puts("failed to delete file");
+		goto cleanup;
+	}
+
+	if(createDirFAT("aaa") == -1) {
+		return_code = 1;
+		puts("failed to create folder");
+		goto cleanup;
+	}
 	
 cleanup:
 	err = terminateFAT();
