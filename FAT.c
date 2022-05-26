@@ -139,6 +139,19 @@ static int findFreeBlock() {
 	return -1;
 }
 
+static void addChildToFolder(DirectoryEntry* parent, uint16_t child) {
+	int i;
+	uint16_t* cur_child;
+	for(i = 0; i < MAX_DIR_CHILDREN; ++i) {
+		cur_child = &(parent->children[i]);
+		if(*cur_child == FREE_CHILD_ENTRY || *cur_child == DELETED_CHILD_ENTRY) {
+			*cur_child = child;
+			break;
+		}
+	}
+	++(parent->num_children);
+}
+
 static int initializeDirEntry(int entry_id, const char* filename, DirectoryEntryType file_type) {
 	int new_block = 0;
 	DirectoryEntry* entry;
@@ -154,6 +167,8 @@ static int initializeDirEntry(int entry_id, const char* filename, DirectoryEntry
 	entry->size = 0;
 	entry->file_type = file_type;
 	entry->parent_directory = backing_disk.current_working_directory;
+	if(entry->parent_directory != ROOT_WORKING_DIRECTORY)
+		addChildToFolder(getEntryFromIndex(entry->parent_directory), entry_id);
 	if(file_type == FAT_DIRECTORY) {
 		entry->num_children = 0;
 		memset(entry->children, 0, sizeof(entry->children));
