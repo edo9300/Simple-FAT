@@ -53,3 +53,5 @@ dkms.conf
 .vs/*
 
 fat_test
+directory_copy
+directory_expand
