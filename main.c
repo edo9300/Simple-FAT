@@ -3,6 +3,16 @@
 #include <assert.h>
 #include <errno.h>
 
+static void printFolderContents(const DirectoryElement* contents) {
+	const DirectoryElement* cur_element;
+	for(cur_element = contents; cur_element->filename != NULL; ++cur_element) {
+		if(cur_element->file_type == FAT_DIRECTORY)
+			printf("[%s]\n", cur_element->filename);
+		else
+			printf("%s\n", cur_element->filename);
+	}
+}
+
 int main(int argc, char** argv) {
 	int err;
 	int return_code = 0;
@@ -11,6 +21,7 @@ int main(int argc, char** argv) {
 	char read_string[512] = { 0 };
 	FileHandle handle;
 	FileHandle handle2;
+	const DirectoryElement* contents;
 	int written;
 	int read;
 	if(argc < 2) {
@@ -91,6 +102,9 @@ int main(int argc, char** argv) {
 		goto cleanup;
 	}
 
+	contents = listDirFAT();
+	printFolderContents(contents);
+
 	changeDirFAT("this is a folder");
 
 	if(createDirFAT("aaa") == -1) {
@@ -104,6 +118,9 @@ int main(int argc, char** argv) {
 		puts("failed to delete file");
 		goto cleanup;
 	}
+
+	contents = listDirFAT();
+	printFolderContents(contents);
 	
 cleanup:
 	err = terminateFAT();
