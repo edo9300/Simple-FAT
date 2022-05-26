@@ -29,7 +29,6 @@ int main(int argc, char** argv) {
 	written = writeFAT(&handle, a, sizeof(a));
 	printf("total written: %d, to write were: %ld\n", written, sizeof(a));
 
-	/*NOTE: use this until seek is implemented*/
 	if(createFileFAT("aaa", &handle) == NULL) {
 		return_code = 1;
 		puts("failed to reopen file");
@@ -39,6 +38,36 @@ int main(int argc, char** argv) {
 	read = readFAT(&handle, read_string, sizeof(read_string));
 	read_string[read] = 0;
 	printf("total read: %d, to read were: %ld, read content: \"%s\"\n", read, sizeof(read_string), read_string);
+
+	if(seekFAT(&handle, 1, FAT_SEEK_SET) == -1) {
+		return_code = 1;
+		puts("failed to seek file");
+		goto cleanup;
+	}
+
+	read = readFAT(&handle, read_string, sizeof(read_string));
+	read_string[read] = 0;
+	printf("total read after seeking with set: %d, to read were: %ld, read content: \"%s\"\n", read, sizeof(read_string), read_string);
+
+	if(seekFAT(&handle, 1, FAT_SEEK_SET) == -1 || seekFAT(&handle, 5, FAT_SEEK_CUR) == -1) {
+		return_code = 1;
+		puts("failed to seek file");
+		goto cleanup;
+	}
+
+	read = readFAT(&handle, read_string, sizeof(read_string));
+	read_string[read] = 0;
+	printf("total read after seeking with cur: %d, to read were: %ld, read content: \"%s\"\n", read, sizeof(read_string), read_string);
+
+	if(seekFAT(&handle, -25, FAT_SEEK_END) == -1) {
+		return_code = 1;
+		puts("failed to seek file");
+		goto cleanup;
+	}
+
+	read = readFAT(&handle, read_string, sizeof(read_string));
+	read_string[read] = 0;
+	printf("total read after seeking with end: %d, to read were: %ld, read content: \"%s\"\n", read, sizeof(read_string), read_string);
 	
 cleanup:
 	err = terminateFAT();
