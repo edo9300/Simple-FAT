@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
 		goto cleanup;
 	}
 
-	if(eraseFileFAT(handle) == -1) {
+	if(eraseFileFATAt(handle) == -1) {
 		return_code = 1;
 		puts("failed to delete file");
 		goto cleanup;

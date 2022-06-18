@@ -233,8 +233,27 @@ static void removeChildFromFolder(DirectoryEntry* parent, uint16_t child) {
 	}
 }
 
+int eraseFileFAT(FAT fat, const char* filename) {
+	DirectoryEntry* entry;
+	FileBlock* current_block;
+	FATBackingDisk* backing_disk = (FATBackingDisk*)fat;
+	int entry_id = findDirEntry(backing_disk, filename, NULL, FAT_FILE);
+	if(entry_id == -1)
+		return -1;
+	entry = getEntryFromIndex(entry_id);
+	current_block = getFirstBlockFromDirectoryEntry(entry);
+	while(current_block->type != LAST) {
+		current_block->type = FREE;
+		current_block = getNextBlockFromBlock(current_block);
+	}
+	current_block->type = FREE;
+	if(entry->parent_directory != ROOT_WORKING_DIRECTORY)
+		removeChildFromFolder(getEntryFromIndex(entry->parent_directory), entry_id);
+	memset(entry, 0, sizeof(DirectoryEntry));
+	return 0;
+}
 
-int eraseFileFAT(Handle file) {
+int eraseFileFATAt(Handle file) {
 	FileHandle* handle = (FileHandle*)file;
 	FATBackingDisk* backing_disk = getBackingDiskFromHandle(handle);
 	DirectoryEntry* entry = getDirectoryEntryFromHandle(handle);
@@ -467,7 +486,7 @@ DirectoryElement* listDirFAT(FAT fat) {
 	int i;
 	DirectoryEntry* current_directory;
 	DirectoryEntry* current_child_entry;
-	FATBackingDisk* backing_disk = (FATBackingDisk*) fat;
+	FATBackingDisk* backing_disk = (FATBackingDisk*)fat;
 	if(backing_disk->current_working_directory == ROOT_WORKING_DIRECTORY)
 		return getFoldersFromRoot(backing_disk);
 	current_directory = getEntryFromIndex(backing_disk->current_working_directory);

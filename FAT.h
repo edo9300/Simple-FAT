@@ -50,10 +50,19 @@ Handle createFileFAT(FAT fat, const char* filename);
 void freeHandle(Handle handle);
 
 /*
+* Erases a file in the current working directory corresponding to the passed
+* name.
+* Returns 0 on success.
+* Returns -1 on error.
+*/
+int eraseFileFAT(FAT fat, const char* filename);
+
+/*
 * Erases the file associated to the provided handle.
+* (name inspired by the posix functions working on file handles)
 * The handle object still has to be freed afterwards.
 */
-int eraseFileFAT(Handle file);
+int eraseFileFATAt(Handle file);
 
 /*
 * Writes *size* bytes from *in* to the passed file handle.
