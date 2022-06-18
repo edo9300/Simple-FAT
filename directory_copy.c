@@ -12,23 +12,24 @@
 FAT fat;
 
 static int insertFile(char* name) {
-	FileHandle handle;
+	Handle handle;
 	int fd;
 	char buf[512];
 	int err = 0;
 	ssize_t nread;
 	int written;
-	if(createFileFAT(fat, name, &handle) == NULL) {
+	if((handle = createFileFAT(fat, name)) == NULL) {
 		printf("failed to create file: %s\n", name);
 		return -1;
 	}
 	fd = open(name, O_RDONLY);
 	if(fd == -1) {
 		perror("failed to open file");
+		freeHandle(handle);
 		return -1;
 	}
 	while(nread = read(fd, buf, sizeof(buf)), nread > 0) {
-		written = writeFAT(&handle, buf, nread);
+		written = writeFAT(handle, buf, nread);
 		if(written != nread) {
 			printf("Didn't manage to fully copy the file\n");
 			err = 1;
@@ -36,6 +37,7 @@ static int insertFile(char* name) {
 		}
 	}
 	close(fd);
+	freeHandle(handle);
 	return err;
 }
 

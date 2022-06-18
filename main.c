@@ -18,8 +18,8 @@ int main(int argc, char** argv) {
 	char a[] = "Test string to write to the file";
 	char b[] = "Content of file with name of bbb";
 	char read_string[512] = { 0 };
-	FileHandle handle;
-	FileHandle handle2;
+	Handle handle;
+	Handle handle2;
 	DirectoryElement* contents;
 	int written;
 	int read;
@@ -34,65 +34,68 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 	
-	if(createFileFAT(fat, "aaa", &handle) == NULL) {
+	if((handle = createFileFAT(fat, "aaa")) == NULL) {
 		return_code = 1;
 		puts("failed to create file");
 		goto cleanup;
 	}
 
-	if(createFileFAT(fat, "bbb", &handle2) == NULL) {
+	if((handle2 = createFileFAT(fat, "bbb")) == NULL) {
+		freeHandle(handle);
 		return_code = 1;
 		puts("failed to create file");
 		goto cleanup;
 	}
 
 
-	written = writeFAT(&handle, a, 20);
+	written = writeFAT(handle, a, 20);
 	printf("total written: %d, to write were: %d\n", written, 20);
 
-	written = writeFAT(&handle2, b, sizeof(b));
+	written = writeFAT(handle2, b, sizeof(b));
 	printf("total written to b: %d, to write were: %ld\n", written, sizeof(b));
 
-	written = writeFAT(&handle, a + 20, sizeof(a) - 20);
+	written = writeFAT(handle, a + 20, sizeof(a) - 20);
 	printf("total written: %d, to write were: %ld\n", written, sizeof(a) - 20);
 
-	if(createFileFAT(fat, "aaa", &handle) == NULL) {
+	freeHandle(handle);
+
+	if((handle = createFileFAT(fat, "aaa")) == NULL) {
 		return_code = 1;
 		puts("failed to reopen file");
 		goto cleanup;
 	}
 
-	read = readFAT(&handle, read_string, sizeof(read_string));
+	read = readFAT(handle, read_string, sizeof(read_string));
 	read_string[read] = 0;
 	printf("total read: %d, to read were: %ld, read content: \"%s\"\n", read, sizeof(read_string), read_string);
 
-	if(seekFAT(&handle, 1, FAT_SEEK_SET) == -1) {
+	if(seekFAT(handle, 1, FAT_SEEK_SET) == -1) {
 		return_code = 1;
 		puts("failed to seek file");
 		goto cleanup;
 	}
 
-	read = readFAT(&handle, read_string, sizeof(read_string));
+	read = readFAT(handle, read_string, sizeof(read_string));
 	read_string[read] = 0;
 	printf("total read after seeking with set: %d, to read were: %ld, read content: \"%s\"\n", read, sizeof(read_string), read_string);
 
-	if(seekFAT(&handle, 1, FAT_SEEK_SET) == -1 || seekFAT(&handle, 5, FAT_SEEK_CUR) == -1) {
+	if(seekFAT(handle, 1, FAT_SEEK_SET) == -1 || seekFAT(handle, 5, FAT_SEEK_CUR) == -1) {
 		return_code = 1;
 		puts("failed to seek file");
 		goto cleanup;
 	}
 
-	read = readFAT(&handle, read_string, sizeof(read_string));
+	read = readFAT(handle, read_string, sizeof(read_string));
 	read_string[read] = 0;
 	printf("total read after seeking with cur: %d, to read were: %ld, read content: \"%s\"\n", read, sizeof(read_string), read_string);
 
-	if(seekFAT(&handle, -25, FAT_SEEK_END) == -1) {
+	if(seekFAT(handle, -25, FAT_SEEK_END) == -1) {
 		return_code = 1;
 		puts("failed to seek file");
 		goto cleanup;
 	}
 
-	read = readFAT(&handle, read_string, sizeof(read_string));
+	read = readFAT(handle, read_string, sizeof(read_string));
 	read_string[read] = 0;
 	printf("total read after seeking with end: %d, to read were: %ld, read content: \"%s\"\n", read, sizeof(read_string), read_string);
 
@@ -114,7 +117,7 @@ int main(int argc, char** argv) {
 		goto cleanup;
 	}
 
-	if(eraseFileFAT(&handle) == -1) {
+	if(eraseFileFAT(handle) == -1) {
 		return_code = 1;
 		puts("failed to delete file");
 		goto cleanup;

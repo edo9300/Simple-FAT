@@ -10,22 +10,23 @@
 FAT fat;
 
 static int extractFile(const char* name) {
-	FileHandle handle;
+	Handle handle;
 	int fd;
 	char buf[512];
 	char* out_ptr;
 	int err = 0;
 	int nread;
 	ssize_t nwritten;
-	if(createFileFAT(fat, name, &handle) == NULL) {
+	if((handle = createFileFAT(fat, name)) == NULL) {
 		printf("failed to open file in FAT: %s\n", name);
 		return -1;
 	}
 	if((fd = creat(name, 0660)) == -1) {
 		fprintf(stderr, "failed to create output file %s: %s\n", name, strerror(errno));
+		freeHandle(handle);
 		return -1;
 	}
-	while(nread = readFAT(&handle, buf, sizeof(buf)), nread > 0) {
+	while(nread = readFAT(handle, buf, sizeof(buf)), nread > 0) {
 		out_ptr = buf;
 		do {
 			nwritten = write(fd, out_ptr, nread);
@@ -42,6 +43,7 @@ static int extractFile(const char* name) {
 	}
 	on_error:
 	close(fd);
+	freeHandle(handle);
 	return err;
 }
 
