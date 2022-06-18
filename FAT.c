@@ -198,6 +198,7 @@ FileHandle* createFileFAT(FAT fat, const char* filename, FileHandle* handle) {
 		handle->current_block_index = 0;
 		handle->directory_entry = free_entry;
 	}
+	handle->backing_disk = fat;
 	return handle;
 }
 
