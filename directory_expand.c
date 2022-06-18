@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+FAT fat;
+
 static int extractFile(const char* name) {
 	FileHandle handle;
 	int fd;
@@ -15,7 +17,7 @@ static int extractFile(const char* name) {
 	int err = 0;
 	int nread;
 	ssize_t nwritten;
-	if(createFileFAT(name, &handle) == NULL) {
+	if(createFileFAT(fat, name, &handle) == NULL) {
 		printf("failed to open file in FAT: %s\n", name);
 		return -1;
 	}
@@ -56,13 +58,13 @@ static int extractDirectory(const char* name) {
 		return -1;
 	}
 
-	contents = listDirFAT();
+	contents = listDirFAT(fat);
 	for(cur_element = contents; cur_element->filename != NULL; ++cur_element) {
 		printf("CWD: %s, Got: %s, type is: %s\n", name, cur_element->filename, cur_element->file_type == FAT_DIRECTORY ? "folder" : "file");
 		if(cur_element->file_type == FAT_DIRECTORY) {
-			changeDirFAT(cur_element->filename);
+			changeDirFAT(fat, cur_element->filename);
 			err = extractDirectory(cur_element->filename);
-			changeDirFAT("..");
+			changeDirFAT(fat, "..");
 		} else
 			err = extractFile(cur_element->filename);
 	}
@@ -80,14 +82,14 @@ int main(int argc, char** argv) {
 		puts("the first argument must be the \"virtual disk\" to expand and the second must be the name of the folder where this disk will be extracted to");
 		return 1;
 	}
-	err = initFAT(argv[1], 0);
-	if(err < 0) {
+	fat = initFAT(argv[1], 0);
+	if(fat == NULL) {
 		perror("failed to initialize FAT");
 		return 1;
 	}
 
 	err = extractDirectory(argv[2]);
-	if(terminateFAT() != 0) {
+	if(terminateFAT(fat) != 0) {
 		assert(0 || "failed to free the resources");
 	}
 	return err;

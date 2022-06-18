@@ -9,6 +9,8 @@
 #include <errno.h>
 #include <fcntl.h> /*open*/
 
+FAT fat;
+
 static int insertFile(char* name) {
 	FileHandle handle;
 	int fd;
@@ -16,7 +18,7 @@ static int insertFile(char* name) {
 	int err = 0;
 	ssize_t nread;
 	int written;
-	if(createFileFAT(name, &handle) == NULL) {
+	if(createFileFAT(fat, name, &handle) == NULL) {
 		printf("failed to create file: %s\n", name);
 		return -1;
 	}
@@ -59,18 +61,18 @@ static int insertDirectory(char* name) {
 			continue;
 		stat(cur_dir->d_name, &current_file_stat);
 		if(S_ISDIR(current_file_stat.st_mode)) {
-			err = createDirFAT(cur_dir->d_name);
+			err = createDirFAT(fat, cur_dir->d_name);
 			if(err == -1) {
 				printf("failed to create folder: %s\n", cur_dir->d_name);
 				break;
 			}
-			err = changeDirFAT(cur_dir->d_name);
+			err = changeDirFAT(fat, cur_dir->d_name);
 			if(err == -1) {
 				printf("failed to change to folder in the FAT: %s\n", cur_dir->d_name);
 				break;
 			}
 			err = insertDirectory(cur_dir->d_name);
-			changeDirFAT("..");
+			changeDirFAT(fat, "..");
 		}
 		else if(S_ISREG(current_file_stat.st_mode))
 			err = insertFile(cur_dir->d_name);
@@ -90,13 +92,13 @@ int main(int argc, char** argv) {
 		puts("the first argument must be the folder to put in a \"virtual disk\" and the second must be the name for the disk");
 		return 1;
 	}
-	err = initFAT(argv[2], 1);
-	if(err < 0) {
+	fat = initFAT(argv[2], 1);
+	if(fat == NULL) {
 		perror("failed to initialize FAT");
 		return 1;
 	}
 	err = insertDirectory(argv[1]);
-	if(terminateFAT() != 0) {
+	if(terminateFAT(fat) != 0) {
 		assert(0 || "failed to free the resources");
 	}
 	return err;

@@ -23,23 +23,24 @@ int main(int argc, char** argv) {
 	DirectoryElement* contents;
 	int written;
 	int read;
+	FAT fat;
 	if(argc < 2) {
 		puts("the filename paramter for the disk is required");
 		return 1;
 	}
-	err = initFAT(argv[1], 1);
-	if(err < 0) {
+	fat = initFAT(argv[1], 1);
+	if(fat == NULL) {
 		perror("failed to initialize FAT");
 		return 1;
 	}
 	
-	if(createFileFAT("aaa", &handle) == NULL) {
+	if(createFileFAT(fat, "aaa", &handle) == NULL) {
 		return_code = 1;
 		puts("failed to create file");
 		goto cleanup;
 	}
 
-	if(createFileFAT("bbb", &handle2) == NULL) {
+	if(createFileFAT(fat, "bbb", &handle2) == NULL) {
 		return_code = 1;
 		puts("failed to create file");
 		goto cleanup;
@@ -55,7 +56,7 @@ int main(int argc, char** argv) {
 	written = writeFAT(&handle, a + 20, sizeof(a) - 20);
 	printf("total written: %d, to write were: %ld\n", written, sizeof(a) - 20);
 
-	if(createFileFAT("aaa", &handle) == NULL) {
+	if(createFileFAT(fat, "aaa", &handle) == NULL) {
 		return_code = 1;
 		puts("failed to reopen file");
 		goto cleanup;
@@ -95,19 +96,19 @@ int main(int argc, char** argv) {
 	read_string[read] = 0;
 	printf("total read after seeking with end: %d, to read were: %ld, read content: \"%s\"\n", read, sizeof(read_string), read_string);
 
-	if(createDirFAT("this is a folder") == -1) {
+	if(createDirFAT(fat, "this is a folder") == -1) {
 		return_code = 1;
 		puts("failed to create folder");
 		goto cleanup;
 	}
 
-	contents = listDirFAT();
+	contents = listDirFAT(fat);
 	printFolderContents(contents);
 	freeDirList(contents);
 
-	changeDirFAT("this is a folder");
+	changeDirFAT(fat, "this is a folder");
 
-	if(createDirFAT("aaa") == -1) {
+	if(createDirFAT(fat, "aaa") == -1) {
 		return_code = 1;
 		puts("failed to create folder");
 		goto cleanup;
@@ -119,12 +120,12 @@ int main(int argc, char** argv) {
 		goto cleanup;
 	}
 
-	contents = listDirFAT();
+	contents = listDirFAT(fat);
 	printFolderContents(contents);
 	freeDirList(contents);
 	
 cleanup:
-	err = terminateFAT();
+	err = terminateFAT(fat);
 	assert((err == 0) && "failed to free the resources");
 	return return_code;
 }
