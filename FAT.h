@@ -4,13 +4,7 @@
 #include <stdint.h> /*int_t types*/
 
 typedef void* FAT;
-
-typedef struct FileHandle {
-	uint32_t current_pos;
-	uint32_t current_block_index;
-	uint32_t directory_entry;
-	FAT backing_disk;
-} FileHandle;
+typedef void* Handle;
 
 typedef enum SeekWhence {
 	FAT_SEEK_SET,
@@ -41,11 +35,12 @@ FAT initFAT(const char* diskname, int anew);
 */
 int terminateFAT(FAT fat);
 
-FileHandle* createFileFAT(FAT fat, const char* filename, FileHandle* handle);
-int eraseFileFAT(FileHandle* file);
-int writeFAT(FileHandle* to, const void* in, size_t size);
-int readFAT(FileHandle* from, void* out, size_t size);
-int seekFAT(FileHandle* file, int32_t offset, SeekWhence whence);
+Handle createFileFAT(FAT fat, const char* filename);
+void freeHandle(Handle handle);
+int eraseFileFAT(Handle file);
+int writeFAT(Handle to, const void* in, size_t size);
+int readFAT(Handle from, void* out, size_t size);
+int seekFAT(Handle file, int32_t offset, SeekWhence whence);
 int createDirFAT(FAT fat, const char* dirname);
 int eraseDirFAT(FAT fat, const char* dirname);
 int changeDirFAT(FAT fat, const char* new_dirname);

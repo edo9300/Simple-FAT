@@ -54,6 +54,13 @@ typedef struct FATBackingDisk {
 	uint16_t current_working_directory;
 } FATBackingDisk;
 
+typedef struct FileHandle {
+	uint32_t current_pos;
+	uint32_t current_block_index;
+	uint32_t directory_entry;
+	FAT backing_disk;
+} FileHandle;
+
 FAT initFAT(const char* diskname, int anew) {
 	int prev_errno;
 	int flags = O_CREAT | O_RDWR;
@@ -180,10 +187,11 @@ static int initializeDirEntry(FATBackingDisk* backing_disk, int entry_id, const 
 	return 0;
 }
 
-FileHandle* createFileFAT(FAT fat, const char* filename, FileHandle* handle) {
+Handle createFileFAT(FAT fat, const char* filename) {
 	int free_entry;
 	int used_entry;
 	FATBackingDisk* backing_disk = (FATBackingDisk*)fat;
+	FileHandle* handle = (FileHandle*)malloc(sizeof(FileHandle));
 	used_entry = findDirEntry(backing_disk, filename, &free_entry, FAT_FILE);
 	if(used_entry == -1 && free_entry == -1)
 		return NULL;
@@ -200,6 +208,10 @@ FileHandle* createFileFAT(FAT fat, const char* filename, FileHandle* handle) {
 	}
 	handle->backing_disk = fat;
 	return handle;
+}
+
+void freeHandle(Handle handle) {
+	free(handle);
 }
 
 #define getBackingDiskFromHandle(handle) ((FATBackingDisk*)handle->backing_disk)
@@ -222,9 +234,10 @@ static void removeChildFromFolder(DirectoryEntry* parent, uint16_t child) {
 }
 
 
-int eraseFileFAT(FileHandle* file) {
-	FATBackingDisk* backing_disk = getBackingDiskFromHandle(file);
-	DirectoryEntry* entry = getDirectoryEntryFromHandle(file);
+int eraseFileFAT(Handle file) {
+	FileHandle* handle = (FileHandle*)file;
+	FATBackingDisk* backing_disk = getBackingDiskFromHandle(handle);
+	DirectoryEntry* entry = getDirectoryEntryFromHandle(handle);
 	FileBlock* current_block = getFirstBlockFromDirectoryEntry(entry);
 	while(current_block->type != LAST) {
 		current_block->type = FREE;
@@ -232,7 +245,7 @@ int eraseFileFAT(FileHandle* file) {
 	}
 	current_block->type = FREE;
 	if(entry->parent_directory != ROOT_WORKING_DIRECTORY)
-		removeChildFromFolder(getEntryFromIndex(entry->parent_directory), file->directory_entry);
+		removeChildFromFolder(getEntryFromIndex(entry->parent_directory), handle->directory_entry);
 	memset(entry, 0, sizeof(DirectoryEntry));
 	return 0;
 }
@@ -275,12 +288,13 @@ do {\
 	handle->current_pos = absolute_pos % BLOCK_BUFFER_SIZE;\
 } while(0)
 
-int writeFAT(FileHandle* to, const void* in, size_t size) {
+int writeFAT(Handle to, const void* in, size_t size) {
+	FileHandle* handle = (FileHandle*)to;
 	size_t written = 0;
-	uint32_t pos = to->current_pos;
-	FATBackingDisk* backing_disk = getBackingDiskFromHandle(to);
-	uint32_t absolute_pos = getAbsolutePosFromHandle(to);
-	FileBlock* block = getCurrentBlockFromHandle(to);
+	uint32_t pos = handle->current_pos;
+	FATBackingDisk* backing_disk = getBackingDiskFromHandle(handle);
+	uint32_t absolute_pos = getAbsolutePosFromHandle(handle);
+	FileBlock* block = getCurrentBlockFromHandle(handle);
 	char* cur = (char*)in;
 	uint32_t to_write;
 	uint32_t iterated_blocks = 0;
@@ -300,23 +314,24 @@ int writeFAT(FileHandle* to, const void* in, size_t size) {
 			++iterated_blocks;
 		}
 	}
-	to->current_pos = pos;
-	to->current_block_index += iterated_blocks;
-	if(absolute_pos > getTotalSizeFromHandle(to))
-		getTotalSizeFromHandle(to) = absolute_pos;
+	handle->current_pos = pos;
+	handle->current_block_index += iterated_blocks;
+	if(absolute_pos > getTotalSizeFromHandle(handle))
+		getTotalSizeFromHandle(handle) = absolute_pos;
 	return written;
 }
 
-int readFAT(FileHandle* from, void* out, size_t size) {
-	FATBackingDisk* backing_disk = getBackingDiskFromHandle(from);
-	uint32_t absolute_pos = getAbsolutePosFromHandle(from);
-	uint32_t file_size = getTotalSizeFromHandle(from);
+int readFAT(Handle from, void* out, size_t size) {
+	FileHandle* handle = (FileHandle*)from;
+	FATBackingDisk* backing_disk = getBackingDiskFromHandle(handle);
+	uint32_t absolute_pos = getAbsolutePosFromHandle(handle);
+	uint32_t file_size = getTotalSizeFromHandle(handle);
 	uint32_t total_read = 0;
-	FileBlock* block = getCurrentBlockFromHandle(from);
+	FileBlock* block = getCurrentBlockFromHandle(handle);
 	char* cur = (char*)out;
 	uint32_t to_read;
 	uint32_t iterated_blocks = 0;
-	uint32_t pos = from->current_pos;
+	uint32_t pos = handle->current_pos;
 	if((absolute_pos + size) > file_size)
 		size = file_size - absolute_pos;
 	while(total_read < size) {
@@ -335,14 +350,15 @@ int readFAT(FileHandle* from, void* out, size_t size) {
 			++iterated_blocks;
 		}
 	}
-	from->current_pos = pos;
-	from->current_block_index += iterated_blocks;
+	handle->current_pos = pos;
+	handle->current_block_index += iterated_blocks;
 	return total_read;
 }
 
-int seekFAT(FileHandle* file, int32_t offset, SeekWhence whence) {
+int seekFAT(Handle file, int32_t offset, SeekWhence whence) {
 	uint32_t new_pos;
-	FATBackingDisk* backing_disk = getBackingDiskFromHandle(file);
+	FileHandle* handle = (FileHandle*)file;
+	FATBackingDisk* backing_disk = getBackingDiskFromHandle(handle);
 	if(whence > FAT_SEEK_END)
 		return -1;
 	switch(whence) {
@@ -352,23 +368,23 @@ int seekFAT(FileHandle* file, int32_t offset, SeekWhence whence) {
 			new_pos = offset;
 			break;
 		case FAT_SEEK_CUR: {
-			new_pos = getAbsolutePosFromHandle(file) + offset;
-			if(new_pos > getTotalSizeFromHandle(file))
+			new_pos = getAbsolutePosFromHandle(handle) + offset;
+			if(new_pos > getTotalSizeFromHandle(handle))
 				return -1;
 			break;
 		}
 		case FAT_SEEK_END: {
 			if(offset > 0)
 				return -1;
-			new_pos = getTotalSizeFromHandle(file);
+			new_pos = getTotalSizeFromHandle(handle);
 			new_pos += offset;
 			/*underflow*/
-			if(new_pos > getTotalSizeFromHandle(file))
+			if(new_pos > getTotalSizeFromHandle(handle))
 				return -1;
 			break;
 		}
 	}
-	updateFileHandlePositionFromAbsolutePosition(file, new_pos);
+	updateFileHandlePositionFromAbsolutePosition(handle, new_pos);
 	return 0;
 }
 
