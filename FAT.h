@@ -3,10 +3,13 @@
 #include <stddef.h> /*size_t, NULL*/
 #include <stdint.h> /*int_t types*/
 
+typedef void* FAT;
+
 typedef struct FileHandle {
 	uint32_t current_pos;
 	uint32_t current_block_index;
 	uint32_t directory_entry;
+	FAT backing_disk;
 } FileHandle;
 
 typedef enum SeekWhence {
@@ -30,23 +33,23 @@ typedef struct DirectoryElement {
 * this will then be the disk used for the lifetime of the program
 * returns 0 on success, otherwise error
 */
-int initFAT(const char* diskname, int anew);
+FAT initFAT(const char* diskname, int anew);
 
 /*
 * Frees all the resources and flushes pending changes to the backing
 * file
 */
-int terminateFAT(void);
+int terminateFAT(FAT fat);
 
-FileHandle* createFileFAT(const char* filename, FileHandle* handle);
+FileHandle* createFileFAT(FAT fat, const char* filename, FileHandle* handle);
 int eraseFileFAT(FileHandle* file);
 int writeFAT(FileHandle* to, const void* in, size_t size);
 int readFAT(FileHandle* from, void* out, size_t size);
 int seekFAT(FileHandle* file, int32_t offset, SeekWhence whence);
-int createDirFAT(const char* dirname);
-int eraseDirFAT(const char* dirname);
-int changeDirFAT(const char* new_dirname);
-DirectoryElement* listDirFAT();
+int createDirFAT(FAT fat, const char* dirname);
+int eraseDirFAT(FAT fat, const char* dirname);
+int changeDirFAT(FAT fat, const char* new_dirname);
+DirectoryElement* listDirFAT(FAT fat);
 void freeDirList(DirectoryElement* list);
 
 #endif /*FAT_H*/
