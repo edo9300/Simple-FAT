@@ -10,7 +10,7 @@
 #include <assert.h> /*assert*/
 
 #define TOTAL_BLOCKS 1024
-#define BLOCK_BUFFER_SIZE 511
+#define BLOCK_BUFFER_SIZE 512
 #define DIRECTORY_ENTRY_MAX_NAME 256
 #define TOTAL_FAT_ENTRIES 256
 #define MAX_DIR_CHILDREN 64
