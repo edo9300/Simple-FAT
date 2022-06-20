@@ -65,18 +65,19 @@ typedef struct FileHandle {
 
 FAT initFAT(const char* diskname, int anew) {
 	int prev_errno;
+	int descriptor;
 	int flags = O_CREAT | O_RDWR;
 	FATBackingDisk* backing_disk = (FATBackingDisk*)malloc(sizeof(FATBackingDisk));
 	if(backing_disk == NULL)
-		return NULL;
+		goto error;
 	if(anew)
 		flags |= O_TRUNC;
 	backing_disk->mmapped_file_descriptor = open(diskname, flags, 0666);
 	if(backing_disk->mmapped_file_descriptor == -1)
-		return NULL;
+		goto error;
 	if(anew) {
 		if(ftruncate(backing_disk->mmapped_file_descriptor, sizeof(FATTable) + sizeof(DirectoryTable) + sizeof(FileBlock) * TOTAL_BLOCKS) != 0)
-			return NULL;
+			goto error;
 	}
 	backing_disk->mmapped_file_memory = (char*)mmap(NULL,
 												sizeof(FATTable) + sizeof(DirectoryTable) + sizeof(FileBlock) * TOTAL_BLOCKS,
@@ -84,12 +85,8 @@ FAT initFAT(const char* diskname, int anew) {
 												MAP_SHARED,
 												backing_disk->mmapped_file_descriptor,
 												0);
-	if(backing_disk->mmapped_file_memory == MAP_FAILED) {
-		prev_errno = errno;
-		close(backing_disk->mmapped_file_descriptor);
-		errno = prev_errno;
-		return NULL;
-	}
+	if(backing_disk->mmapped_file_memory == MAP_FAILED)
+		goto error;
 	backing_disk->mapped_FAT = (FATTable*)backing_disk->mmapped_file_memory;
 	if(anew)
 		memset(backing_disk->mapped_FAT, UNUSED_FAT_ENTRY, sizeof(FATTable));
@@ -99,6 +96,17 @@ FAT initFAT(const char* diskname, int anew) {
 	backing_disk->currently_mapped_size = sizeof(FATTable) + sizeof(FileBlock) * TOTAL_BLOCKS;
 	backing_disk->current_working_directory = ROOT_WORKING_DIRECTORY;
 	return backing_disk;
+error:
+	if(backing_disk == NULL) /* Nothing to free */
+		return NULL;
+	descriptor = backing_disk->mmapped_file_descriptor;
+	free(backing_disk);
+	if(descriptor == -1)
+		return NULL;
+	prev_errno = errno;
+	close(descriptor);
+	errno = prev_errno;
+	return NULL;
 }
 
 int terminateFAT(FAT fat) {
