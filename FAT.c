@@ -177,6 +177,7 @@ static void addChildToFolder(DirectoryEntry* parent, uint16_t child) {
 			break;
 		}
 	}
+	assert(i < MAX_DIR_CHILDREN);
 	++(parent->num_children);
 }
 
