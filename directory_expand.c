@@ -21,7 +21,7 @@ static int extractFile(const char* name) {
 		printf("failed to open file in FAT: %s\n", name);
 		return -1;
 	}
-	if((fd = creat(name, 0660)) == -1) {
+	if((fd = creat(name, 0666)) == -1) {
 		fprintf(stderr, "failed to create output file %s: %s\n", name, strerror(errno));
 		freeHandle(handle);
 		return -1;
@@ -51,7 +51,7 @@ static int extractDirectory(const char* name) {
 	DirectoryElement* contents;
 	DirectoryElement* cur_element;
 	int err = 0;
-	if(mkdir(name, 0660) != 0) {
+	if(mkdir(name, 0770) != 0) {
 		fprintf(stderr, "failed to create directory %s: %s\n", name, strerror(errno));
 		return -1;
 	}
