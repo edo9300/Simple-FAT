@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-FAT fat;
+static FAT fat;
 
 static int extractFile(const char* name) {
 	Handle handle;
@@ -26,10 +26,10 @@ static int extractFile(const char* name) {
 		freeHandle(handle);
 		return -1;
 	}
-	while(nread = readFAT(handle, buf, sizeof(buf)), nread > 0) {
+	while((nread = readFAT(handle, buf, sizeof(buf))) > 0) {
 		out_ptr = buf;
 		do {
-			nwritten = write(fd, out_ptr, nread);
+			nwritten = write(fd, out_ptr, (size_t)nread);
 
 			if(nwritten >= 0) {
 				nread -= nwritten;
@@ -50,7 +50,7 @@ static int extractFile(const char* name) {
 static int extractDirectory(const char* name) {
 	DirectoryElement* contents;
 	DirectoryElement* cur_element;
-	int err;
+	int err = 0;
 	if(mkdir(name, 0660) != 0) {
 		fprintf(stderr, "failed to create directory %s: %s\n", name, strerror(errno));
 		return -1;
@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
 
 	err = extractDirectory(argv[2]);
 	if(terminateFAT(fat) != 0) {
-		assert(0 || "failed to free the resources");
+		assert(0 || (char*)"failed to free the resources");
 	}
 	return err;
 }

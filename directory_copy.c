@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <fcntl.h> /*open*/
 
-FAT fat;
+static FAT fat;
 
 static int insertFile(char* name) {
 	Handle handle;
@@ -28,9 +28,9 @@ static int insertFile(char* name) {
 		freeHandle(handle);
 		return -1;
 	}
-	while(nread = read(fd, buf, sizeof(buf)), nread > 0) {
-		written = writeFAT(handle, buf, nread);
-		if(written != nread) {
+	while((nread = read(fd, buf, sizeof(buf))) > 0) {
+		written = writeFAT(handle, buf, (size_t)nread);
+		if(written != (int)nread) {
 			printf("Didn't manage to fully copy the file\n");
 			err = 1;
 			break;
@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
 	}
 	err = insertDirectory(argv[1]);
 	if(terminateFAT(fat) != 0) {
-		assert(0 || "failed to free the resources");
+		assert(0 || (char*)"failed to free the resources");
 	}
 	return err;
 }
