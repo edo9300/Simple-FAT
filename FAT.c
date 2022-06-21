@@ -45,14 +45,16 @@ typedef struct DirectoryTable {
 	DirectoryEntry entries[TOTAL_DIR_ENTRIES];
 } DirectoryTable;
 
+typedef struct Disk {
+	FATTable fat;
+	DirectoryTable directories;
+	FileBlock blocks[TOTAL_BLOCKS];
+} Disk;
+
 typedef struct FATBackingDisk {
+	size_t currently_mapped_size;
+	Disk* mmapped_disk;
 	int mmapped_file_descriptor;
-	char* mmapped_file_memory;
-	FATTable memory_FAT;
-	FATTable* mapped_FAT;
-	DirectoryTable* mapped_DirectoryEntries;
-	FileBlock* mapped_Blocks;
-	int currently_mapped_size;
 	uint16_t current_working_directory;
 } FATBackingDisk;
 
@@ -76,23 +78,19 @@ FAT initFAT(const char* diskname, int anew) {
 	if(backing_disk->mmapped_file_descriptor == -1)
 		goto error;
 	if(anew) {
-		if(ftruncate(backing_disk->mmapped_file_descriptor, sizeof(FATTable) + sizeof(DirectoryTable) + sizeof(FileBlock) * TOTAL_BLOCKS) != 0)
+		if(ftruncate(backing_disk->mmapped_file_descriptor, sizeof(Disk)) != 0)
 			goto error;
 	}
-	backing_disk->mmapped_file_memory = (char*)mmap(NULL,
-												sizeof(FATTable) + sizeof(DirectoryTable) + sizeof(FileBlock) * TOTAL_BLOCKS,
+	backing_disk->mmapped_disk = (Disk*)mmap(NULL,
+												sizeof(Disk),
 												PROT_READ | PROT_WRITE,
 												MAP_SHARED,
 												backing_disk->mmapped_file_descriptor,
 												0);
-	if(backing_disk->mmapped_file_memory == MAP_FAILED)
+	if(backing_disk->mmapped_disk == MAP_FAILED)
 		goto error;
-	backing_disk->mapped_FAT = (FATTable*)backing_disk->mmapped_file_memory;
 	if(anew)
-		memset(backing_disk->mapped_FAT, UNUSED_FAT_ENTRY, sizeof(FATTable));
-	memcpy(&backing_disk->memory_FAT, backing_disk->mapped_FAT, sizeof(FATTable));
-	backing_disk->mapped_DirectoryEntries = (DirectoryTable*)(backing_disk->mmapped_file_memory + sizeof(FATTable));
-	backing_disk->mapped_Blocks = (FileBlock*)(backing_disk->mmapped_file_memory + sizeof(FATTable) + sizeof(DirectoryTable));
+		memset(&backing_disk->mmapped_disk->fat, 0xff, sizeof(FATTable));
 	backing_disk->currently_mapped_size = sizeof(FATTable) + sizeof(FileBlock) * TOTAL_BLOCKS;
 	backing_disk->current_working_directory = ROOT_WORKING_DIRECTORY;
 	return backing_disk;
@@ -113,9 +111,8 @@ int terminateFAT(FAT fat) {
 	int has_err;
 	int err;
 	FATBackingDisk* backing_disk = (FATBackingDisk*)fat;
-	memcpy(backing_disk->mapped_FAT, &backing_disk->memory_FAT, sizeof(FATTable));
-	has_err = err = msync(backing_disk->mmapped_file_memory, backing_disk->currently_mapped_size, MS_SYNC);
-	err = munmap(backing_disk->mmapped_file_memory, backing_disk->currently_mapped_size);
+	has_err = err = msync(backing_disk->mmapped_disk, backing_disk->currently_mapped_size, MS_SYNC);
+	err = munmap(backing_disk->mmapped_disk, backing_disk->currently_mapped_size);
 	if(err != 0)
 		has_err = err;
 	err = close(backing_disk->mmapped_file_descriptor);
@@ -125,10 +122,10 @@ int terminateFAT(FAT fat) {
 	return has_err;
 }
 
-#define getEntryFromIndex(index) (&(backing_disk->mapped_DirectoryEntries->entries[index]))
-#define getBlockFromIndex(index) (&(backing_disk->mapped_Blocks[index]))
-#define getNextFatEntry(entry) (backing_disk->memory_FAT.entries[entry])
-#define setNextFatEntry(entry,to) do { backing_disk->memory_FAT.entries[entry] = to; } while(0)
+#define getEntryFromIndex(index) (&(backing_disk->mmapped_disk->directories.entries[index]))
+#define getBlockFromIndex(index) (&(backing_disk->mmapped_disk->blocks[index]))
+#define getNextFatEntry(entry) (backing_disk->mmapped_disk->fat.entries[entry])
+#define setNextFatEntry(entry,to) do { backing_disk->mmapped_disk->fat.entries[entry] = (uint32_t)to; } while(0)
 
 static int findDirEntry(FATBackingDisk* backing_disk, const char* filename, int* free, DirectoryEntryType file_type) {
 	DirectoryEntry* cur_entry;
@@ -161,7 +158,7 @@ static int findDirEntry(FATBackingDisk* backing_disk, const char* filename, int*
 static int findFreeBlock(FATBackingDisk* backing_disk) {
 	int i;
 	for(i = 0; i < TOTAL_BLOCKS; ++i) {
-		if(backing_disk->memory_FAT.entries[i] == UNUSED_FAT_ENTRY)
+		if(backing_disk->mmapped_disk->fat.entries[i] == UNUSED_FAT_ENTRY)
 			return i;
 	}
 	return -1;
