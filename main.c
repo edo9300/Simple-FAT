@@ -1,6 +1,7 @@
 #include "FAT.h"
 #include <stdio.h>
 #include <assert.h>
+#include <stdlib.h>
 
 static void printFolderContents(const DirectoryElement* contents) {
 	const DirectoryElement* cur_element;
@@ -12,6 +13,47 @@ static void printFolderContents(const DirectoryElement* contents) {
 	}
 }
 
+static void printCurrentFolderContents(FAT fat) {
+	DirectoryElement* contents = listDirFAT(fat);
+	printFolderContents(contents);
+	freeDirList(contents);
+}
+
+static char *rand_string(char *str, size_t size) {
+	size_t n;
+    const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJK";
+    if (size) {
+        --size;
+        for (n = 0; n < size; n++) {
+            int key = rand() % (int) (sizeof charset - 1);
+            str[n] = charset[key];
+        }
+        str[size] = '\0';
+    }
+    return str;
+}
+
+static void createTooManyChildren(FAT fat, const char* dirname) {
+	int i;
+	char name[20];
+	Handle handle;
+	changeDirFAT(fat, dirname);
+	
+	for(i = 0; i < 66; ++i) {
+		handle = createFileFAT(fat, rand_string(name, 20));
+		if(handle == NULL) {
+			printf("failed to create file number %d\n", i);
+			goto error;
+		}
+		freeHandle(handle);
+	}
+	printf("succesfully created all the files\n");
+	error:
+	printf("total files in the current directory\n");
+
+	printCurrentFolderContents(fat);
+}
+
 int main(int argc, char** argv) {
 	int err;
 	int return_code = 0;
@@ -20,7 +62,6 @@ int main(int argc, char** argv) {
 	char read_string[512] = { 0 };
 	Handle handle;
 	Handle handle2;
-	DirectoryElement* contents;
 	int written;
 	int read;
 	FAT fat;
@@ -107,9 +148,7 @@ int main(int argc, char** argv) {
 		goto cleanup;
 	}
 
-	contents = listDirFAT(fat);
-	printFolderContents(contents);
-	freeDirList(contents);
+	printCurrentFolderContents(fat);
 
 	changeDirFAT(fat, "this is a folder");
 
@@ -127,9 +166,10 @@ int main(int argc, char** argv) {
 
 	freeHandle(handle);
 	handle = NULL;
-	contents = listDirFAT(fat);
-	printFolderContents(contents);
-	freeDirList(contents);
+
+	printCurrentFolderContents(fat);
+	
+	createTooManyChildren(fat, "/");
 	
 cleanup:
 	if(handle)
