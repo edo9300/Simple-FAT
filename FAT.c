@@ -21,7 +21,7 @@
 #define UNUSED_FAT_ENTRY UINT32_MAX
 #define LAST_FAT_ENTRY (UINT32_MAX - 1)
 
-#define ROOT_WORKING_DIRECTORY UINT16_MAX
+#define ROOT_WORKING_DIRECTORY 0
 
 typedef struct DirectoryEntry {
 	char filename[DIRECTORY_ENTRY_MAX_NAME];
@@ -65,6 +65,8 @@ typedef struct FileHandle {
 	FAT backing_disk;
 } FileHandle;
 
+static void setupRootDir(FATBackingDisk* disk);
+
 FAT initFAT(const char* diskname, int anew) {
 	int prev_errno;
 	int descriptor;
@@ -89,8 +91,10 @@ FAT initFAT(const char* diskname, int anew) {
 												0);
 	if(backing_disk->mmapped_disk == MAP_FAILED)
 		goto error;
-	if(anew)
-		memset(&backing_disk->mmapped_disk->fat, 0xff, sizeof(FATTable));
+	if(anew) {
+		memset(&(backing_disk->mmapped_disk->fat), 0xff, sizeof(FATTable));
+		setupRootDir(backing_disk);
+	}
 	backing_disk->currently_mapped_size = sizeof(FATTable) + sizeof(FileBlock) * TOTAL_BLOCKS;
 	backing_disk->current_working_directory = ROOT_WORKING_DIRECTORY;
 	return backing_disk;
@@ -127,11 +131,20 @@ int terminateFAT(FAT fat) {
 #define getNextFatEntry(entry) (backing_disk->mmapped_disk->fat.entries[entry])
 #define setNextFatEntry(entry,to) do { backing_disk->mmapped_disk->fat.entries[entry] = (uint32_t)to; } while(0)
 
+static void setupRootDir(FATBackingDisk* backing_disk) {
+	DirectoryEntry* entry = getEntryFromIndex(ROOT_WORKING_DIRECTORY);
+	entry->filename[0] = '/';
+	entry->filename[1] = '\0';
+}
+
 static int findDirEntry(FATBackingDisk* backing_disk, const char* filename, int* free, DirectoryEntryType file_type) {
 	DirectoryEntry* cur_entry;
 	int i;
 	int found_free = -1;
-	for(i = 0; i < TOTAL_DIR_ENTRIES; ++i) {
+	/*
+	* We skip the root directory as it should not be touchable from the various functions
+	*/
+	for(i = 1; i < TOTAL_DIR_ENTRIES; ++i) {
 		cur_entry = getEntryFromIndex(i);
 		if(cur_entry->filename[0] == 0) {
 			if(found_free == -1)
@@ -147,8 +160,7 @@ static int findDirEntry(FATBackingDisk* backing_disk, const char* filename, int*
 			return i;
 		}
 	}
-	if(backing_disk->current_working_directory != ROOT_WORKING_DIRECTORY
-	   && getEntryFromIndex(backing_disk->current_working_directory)->num_children >= MAX_DIR_CHILDREN)
+	if(getEntryFromIndex(backing_disk->current_working_directory)->num_children >= MAX_DIR_CHILDREN)
 		found_free = -1;
 	if(free)
 		*free = found_free;
@@ -193,8 +205,7 @@ static int initializeDirEntry(FATBackingDisk* backing_disk, int entry_id, const 
 	entry->size = 0;
 	entry->file_type = (uint8_t)file_type;
 	entry->parent_directory = backing_disk->current_working_directory;
-	if(entry->parent_directory != ROOT_WORKING_DIRECTORY)
-		addChildToFolder(getEntryFromIndex(entry->parent_directory), (uint16_t)entry_id);
+	addChildToFolder(getEntryFromIndex(entry->parent_directory), (uint16_t)entry_id);
 	if(file_type == FAT_DIRECTORY) {
 		entry->num_children = 0;
 		memset(entry->children, 0, sizeof(entry->children));
@@ -493,31 +504,11 @@ static DirectoryElement* copyBufferToHeapAllocatedArray(const DirectoryElement* 
 	return arr;
 }
 
-static DirectoryElement* getFoldersFromRoot(FATBackingDisk* backing_disk) {
-	DirectoryEntry* cur_entry;
-	int i;
-	size_t populated = 0;
-	for(i = 0; i < TOTAL_DIR_ENTRIES && populated < MAX_DIR_CHILDREN; ++i) {
-		cur_entry = getEntryFromIndex(i);
-		if(cur_entry->filename[0] == 0)
-			continue;
-		if(cur_entry->parent_directory != ROOT_WORKING_DIRECTORY)
-			continue;
-		tmp_folders[populated].filename = cur_entry->filename;
-		tmp_folders[populated].file_type = (DirectoryEntryType)cur_entry->file_type;
-		++populated;
-	}
-	tmp_folders[populated].filename = NULL;
-	return copyBufferToHeapAllocatedArray(tmp_folders, populated + 1);
-}
-
 DirectoryElement* listDirFAT(FAT fat) {
 	size_t i;
 	DirectoryEntry* current_directory;
 	DirectoryEntry* current_child_entry;
 	FATBackingDisk* backing_disk = (FATBackingDisk*)fat;
-	if(backing_disk->current_working_directory == ROOT_WORKING_DIRECTORY)
-		return getFoldersFromRoot(backing_disk);
 	current_directory = getEntryFromIndex(backing_disk->current_working_directory);
 	for(i = 0; i < current_directory->num_children;) {
 		if(current_directory->children[i] != DELETED_CHILD_ENTRY) {
