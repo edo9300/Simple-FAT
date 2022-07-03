@@ -41,7 +41,6 @@ int main(int argc, char** argv) {
 	}
 
 	if((handle2 = createFileFAT(fat, "bbb")) == NULL) {
-		freeHandle(handle);
 		return_code = 1;
 		puts("failed to create file");
 		goto cleanup;
@@ -53,6 +52,9 @@ int main(int argc, char** argv) {
 
 	written = writeFAT(handle2, b, sizeof(b));
 	printf("total written to b: %d, to write were: %ld\n", written, sizeof(b));
+
+	freeHandle(handle2);
+	handle2 = NULL;
 
 	written = writeFAT(handle, a + 20, sizeof(a) - 20);
 	printf("total written: %d, to write were: %ld\n", written, sizeof(a) - 20);
@@ -123,11 +125,17 @@ int main(int argc, char** argv) {
 		goto cleanup;
 	}
 
+	freeHandle(handle);
+	handle = NULL;
 	contents = listDirFAT(fat);
 	printFolderContents(contents);
 	freeDirList(contents);
 	
 cleanup:
+	if(handle)
+		freeHandle(handle);
+	if(handle2)
+		freeHandle(handle2);
 	err = terminateFAT(fat);
 	assert((err == 0) && "failed to free the resources");
 	return return_code;
