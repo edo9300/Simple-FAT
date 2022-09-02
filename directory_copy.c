@@ -31,7 +31,7 @@ static int insertFile(char* name) {
 	while((nread = read(fd, buf, sizeof(buf))) > 0) {
 		written = writeFAT(handle, buf, (size_t)nread);
 		if(written != (int)nread) {
-			printf("Didn't manage to fully copy the file\n");
+			printf("Didn't manage to fully copy the file: %s\n", name);
 			err = 1;
 			break;
 		}
