@@ -350,17 +350,41 @@ do {\
 	handle->current_pos = absolute_pos % BLOCK_BUFFER_SIZE;\
 } while(0)
 
+#define doFileNeedNewBlock(handle) (handle->current_pos == BLOCK_BUFFER_SIZE + 1)
+
+FileBlock* allocateNewBlockForHandleFromENOSPCState(FileHandle* handle, uint32_t* return_fat_entry) {
+	FileBlock* current_block;
+	--(handle->current_block_index);
+	current_block = getCurrentBlockFromHandle(handle, return_fat_entry);
+	assert(current_block != NULL);
+	++(handle->current_block_index);
+	if((current_block = getOrAllocateNewBlock(getBackingDiskFromHandle(handle), return_fat_entry)) == NULL) {
+		errno = ENOSPC;
+		return NULL;
+	}
+	handle->current_pos = 0;
+	return current_block;
+}
+
 int writeFAT(Handle to, const void* in, size_t size) {
 	uint32_t current_fat_entry;
 	FileHandle* handle = (FileHandle*)to;
 	size_t written = 0;
-	uint32_t pos = handle->current_pos;
+	uint32_t pos;
 	FATBackingDisk* backing_disk = getBackingDiskFromHandle(handle);
-	uint32_t absolute_pos = getAbsolutePosFromHandle(handle);
+	uint32_t absolute_pos;
 	FileBlock* block = getCurrentBlockFromHandle(handle, &current_fat_entry);
 	const char* cur = (const char*)in;
 	size_t to_write;
 	uint32_t iterated_blocks = 0;
+	if(doFileNeedNewBlock(handle)) {
+		if((block = allocateNewBlockForHandleFromENOSPCState(handle, &current_fat_entry)) == NULL) {
+			errno = ENOSPC;
+			return 0;
+		}
+	}
+	pos = handle->current_pos;
+	absolute_pos = getAbsolutePosFromHandle(handle);
 	while(written < size) {
 		to_write = BLOCK_BUFFER_SIZE - pos;
 		if(to_write > (size - written))
@@ -372,9 +396,11 @@ int writeFAT(Handle to, const void* in, size_t size) {
 		written += to_write;
 		if(pos >= BLOCK_BUFFER_SIZE) {
 			pos %= BLOCK_BUFFER_SIZE;
-			if((block = getOrAllocateNewBlock(backing_disk, &current_fat_entry)) == NULL)
-				break;
 			++iterated_blocks;
+			if((block = getOrAllocateNewBlock(backing_disk, &current_fat_entry)) == NULL) {
+				pos = BLOCK_BUFFER_SIZE + 1;
+				break;
+			}
 		}
 	}
 	handle->current_pos = pos;
@@ -388,14 +414,22 @@ int readFAT(Handle from, void* out, size_t size) {
 	uint32_t current_fat_entry;
 	FileHandle* handle = (FileHandle*)from;
 	FATBackingDisk* backing_disk = getBackingDiskFromHandle(handle);
-	uint32_t absolute_pos = getAbsolutePosFromHandle(handle);
+	uint32_t absolute_pos;
 	uint32_t file_size = getTotalSizeFromHandle(handle);
 	uint32_t total_read = 0;
 	FileBlock* block = getCurrentBlockFromHandle(handle, &current_fat_entry);
 	char* cur = (char*)out;
 	size_t to_read;
 	uint32_t iterated_blocks = 0;
-	uint32_t pos = handle->current_pos;
+	uint32_t pos;
+	if(doFileNeedNewBlock(handle)) {
+		if((block = allocateNewBlockForHandleFromENOSPCState(handle, &current_fat_entry)) == NULL) {
+			errno = ENOSPC;
+			return -1;
+		}
+	}
+	pos = handle->current_pos;
+	absolute_pos = getAbsolutePosFromHandle(handle);
 	if((absolute_pos + size) > file_size)
 		size = file_size - absolute_pos;
 	while(total_read < size) {
@@ -407,11 +441,13 @@ int readFAT(Handle from, void* out, size_t size) {
 		absolute_pos += to_read;
 		cur += to_read;
 		total_read += to_read;
-		if(pos >= BLOCK_BUFFER_SIZE) {
-			pos %= BLOCK_BUFFER_SIZE;
-			if((block = getOrAllocateNewBlock(backing_disk, &current_fat_entry)) == NULL)
-				break;
+		if(pos == BLOCK_BUFFER_SIZE) {
+			pos = 0;
 			++iterated_blocks;
+			if((block = getOrAllocateNewBlock(backing_disk, &current_fat_entry)) == NULL) {
+				pos = BLOCK_BUFFER_SIZE + 1;
+				break;
+			}
 		}
 	}
 	handle->current_pos = pos;
