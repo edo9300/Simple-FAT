@@ -219,8 +219,10 @@ Handle createFileFAT(FAT fat, const char* filename) {
 	FATBackingDisk* backing_disk = (FATBackingDisk*)fat;
 	FileHandle* handle;
 	used_entry = findDirEntry(backing_disk, filename, &free_entry, FAT_FILE);
-	if(used_entry == -1 && free_entry == -1)
+	if(used_entry == -1 && free_entry == -1) {
+		errno = ENOSPC;
 		return NULL;
+	}
 	handle = (FileHandle*)malloc(sizeof(FileHandle));
 	if(used_entry != -1) {
 		handle->current_pos = 0;
@@ -229,6 +231,7 @@ Handle createFileFAT(FAT fat, const char* filename) {
 	} else {
 		if(initializeDirEntry(backing_disk, free_entry, filename, FAT_FILE) == -1) {
 			free(handle);
+			errno = ENOSPC;
 			return NULL;
 		}
 		handle->current_pos = 0;
@@ -267,8 +270,10 @@ int eraseFileFAT(FAT fat, const char* filename) {
 	uint32_t new_fat_entry;
 	FATBackingDisk* backing_disk = (FATBackingDisk*)fat;
 	int entry_id = findDirEntry(backing_disk, filename, NULL, FAT_FILE);
-	if(entry_id == -1)
+	if(entry_id == -1) {
+		errno = ENOENT;
 		return -1;
+	}
 	entry = getEntryFromIndex(entry_id);
 	current_fat_entry = getFirstFatEntryFromDirectoryEntry(entry);
 	while(current_fat_entry != LAST_FAT_ENTRY) {
@@ -452,8 +457,10 @@ int createDirFAT(FAT fat, const char* dirname) {
 	int used_entry;
 	FATBackingDisk* backing_disk = (FATBackingDisk*)fat;
 	used_entry = findDirEntry(backing_disk, dirname, &free_entry, FAT_DIRECTORY);
-	if(free_entry == -1 && used_entry == -1)
+	if(free_entry == -1 && used_entry == -1) {
+		errno = ENOSPC;
 		return -1;
+	}
 	if(used_entry != -1)
 		return 0;
 	return initializeDirEntry(backing_disk, free_entry, dirname, FAT_DIRECTORY);

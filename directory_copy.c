@@ -19,7 +19,7 @@ static int insertFile(char* name) {
 	ssize_t nread;
 	int written;
 	if((handle = createFileFAT(fat, name)) == NULL) {
-		printf("failed to create file: %s\n", name);
+		printf("failed to create file: %s, error: %s, aborting\n", name, strerror(errno));
 		return -1;
 	}
 	fd = open(name, O_RDONLY);
