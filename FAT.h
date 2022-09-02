@@ -3,12 +3,30 @@
 #include <stddef.h> /*size_t, NULL*/
 #include <stdint.h> /*int_t types*/
 
+/*
+* Handle representing a virtual disk that was opened by the program.
+*/
 typedef void* FAT;
+/*
+* Handle representing a file that was opened within a FAT.
+*/
 typedef void* Handle;
-
+/*
+* Arguments to pass to seekFAT.
+*/
 typedef enum SeekWhence {
+	/*
+	* Seeks starting from the beginning of the file
+	*/
 	FAT_SEEK_SET,
+	/*
+	* Seeks starting from the current position in the file
+	* of the file Handle
+	*/
 	FAT_SEEK_CUR,
+	/*
+	* Seeks starting from the end of the file (positive values go "back" in the file)
+	*/
 	FAT_SEEK_END
 } SeekWhence;
 
@@ -23,16 +41,21 @@ typedef struct DirectoryElement {
 } DirectoryElement;
 
 /*
-* Creates or opens the "virtual disk" used to store the files
-* this will then be the disk used for the lifetime of the program.
-* Returns an opaque pointer to the created disk on success
+* Creates or opens a virtual disk at the provided path.
+* If anew is a nonzero value and a file with the passed name already exists,
+* OR no file with that name exists,
+* a new disk is created (overwritting the already existing file in case).
+* If a file with that name already exists, and anew is 0, that file is opened as a disk
+* Returns a FAT handle to the opened disk on success
 * NULL on error.
 */
 FAT initFAT(const char* diskname, int anew);
 
 /*
-* Frees all the resources and flushes pending changes to the passed
-* disk file, also frees the object.
+* Frees all the resources and flushes pending changes for the passed FAT
+* handle.
+* No file Handle or DirectoryElement array is freed by this function, they
+* MUST be manually freed under any circumstance.
 */
 int terminateFAT(FAT fat);
 
@@ -45,7 +68,7 @@ int terminateFAT(FAT fat);
 Handle createFileFAT(FAT fat, const char* filename);
 
 /*
-* Frees the memory associated with the passed handle.
+* Frees the memory associated with the passed file Handle.
 */
 void freeHandle(Handle handle);
 
@@ -112,7 +135,7 @@ int changeDirFAT(FAT fat, const char* new_dirname);
 * Returns an array of DirectoryElement(s) containing the filename and the type of the element
 * in the current directory.
 * This array is terminated by an element whose filename field is NULL.
-* This array has to be freed with freeDirList.
+* This object has to be freed with freeDirList.
 */
 DirectoryElement* listDirFAT(FAT fat);
 
