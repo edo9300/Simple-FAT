@@ -1,10 +1,24 @@
+#ifdef _WIN32
+#define _CRT_SECURE_NO_WARNINGS
+#define _CRT_NONSTDC_NO_WARNINGS 
+#define _CRT_DECLARE_NONSTDC_NAMES 1
+#include <direct.h>
+#include <io.h>
+#include <sys/types.h>
+#define mkdir(name,mode) mkdir(name)
+typedef int ssize_t;
+#else
+#include <unistd.h>
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+#endif
 #include "FAT.h"
 #include <stdio.h>
 #include <assert.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <string.h>
-#include <unistd.h>
 #include <fcntl.h>
 
 static FAT fat;
@@ -21,7 +35,7 @@ static int extractFile(const char* name) {
 		printf("failed to open file in FAT: %s\n", name);
 		return -1;
 	}
-	if((fd = creat(name, 0666)) == -1) {
+	if((fd = open(name, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666)) == -1) {
 		fprintf(stderr, "failed to create output file %s: %s\n", name, strerror(errno));
 		freeHandle(handle);
 		return -1;
