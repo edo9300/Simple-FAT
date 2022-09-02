@@ -91,14 +91,14 @@ int main(int argc, char** argv) {
 	written = writeFAT(handle, a, 20);
 	printf("total written: %d, to write were: %d\n", written, 20);
 
-	written = writeFAT(handle2, b, sizeof(b));
-	printf("total written to b: %d, to write were: %ld\n", written, sizeof(b));
+	written = writeFAT(handle2, b, (int)sizeof(b));
+	printf("total written to b: %d, to write were: %d\n", written, (int)sizeof(b));
 
 	freeHandle(handle2);
 	handle2 = NULL;
 
-	written = writeFAT(handle, a + 20, sizeof(a) - 20);
-	printf("total written: %d, to write were: %ld\n", written, sizeof(a) - 20);
+	written = writeFAT(handle, a + 20, (int)sizeof(a) - 20);
+	printf("total written: %d, to write were: %d\n", written, (int)sizeof(a) - 20);
 
 	freeHandle(handle);
 
@@ -108,9 +108,9 @@ int main(int argc, char** argv) {
 		goto cleanup;
 	}
 
-	read = readFAT(handle, read_string, sizeof(read_string));
+	read = readFAT(handle, read_string, (int)sizeof(read_string));
 	read_string[read] = 0;
-	printf("total read: %d, to read were: %ld, read content: \"%s\"\n", read, sizeof(read_string), read_string);
+	printf("total read: %d, to read were: %d, read content: \"%s\"\n", read, (int)sizeof(read_string), read_string);
 
 	if(seekFAT(handle, 1, FAT_SEEK_SET) == -1) {
 		return_code = 1;
@@ -118,9 +118,9 @@ int main(int argc, char** argv) {
 		goto cleanup;
 	}
 
-	read = readFAT(handle, read_string, sizeof(read_string));
+	read = readFAT(handle, read_string, (int)sizeof(read_string));
 	read_string[read] = 0;
-	printf("total read after seeking with set: %d, to read were: %ld, read content: \"%s\"\n", read, sizeof(read_string), read_string);
+	printf("total read after seeking with set: %d, to read were: %d, read content: \"%s\"\n", read, (int)sizeof(read_string), read_string);
 
 	if(seekFAT(handle, 1, FAT_SEEK_SET) == -1 || seekFAT(handle, 5, FAT_SEEK_CUR) == -1) {
 		return_code = 1;
@@ -128,9 +128,9 @@ int main(int argc, char** argv) {
 		goto cleanup;
 	}
 
-	read = readFAT(handle, read_string, sizeof(read_string));
+	read = readFAT(handle, read_string, (int)sizeof(read_string));
 	read_string[read] = 0;
-	printf("total read after seeking with cur: %d, to read were: %ld, read content: \"%s\"\n", read, sizeof(read_string), read_string);
+	printf("total read after seeking with cur: %d, to read were: %d, read content: \"%s\"\n", read, (int)sizeof(read_string), read_string);
 
 	if(seekFAT(handle, -25, FAT_SEEK_END) == -1) {
 		return_code = 1;
@@ -138,9 +138,9 @@ int main(int argc, char** argv) {
 		goto cleanup;
 	}
 
-	read = readFAT(handle, read_string, sizeof(read_string));
+	read = readFAT(handle, read_string, (int)sizeof(read_string));
 	read_string[read] = 0;
-	printf("total read after seeking with end: %d, to read were: %ld, read content: \"%s\"\n", read, sizeof(read_string), read_string);
+	printf("total read after seeking with end: %d, to read were: %d, read content: \"%s\"\n", read, (int)sizeof(read_string), read_string);
 
 	if(createDirFAT(fat, "this is a folder") == -1) {
 		return_code = 1;
