@@ -1,6 +1,5 @@
 #include "FAT.h"
 #include <stddef.h> /*size_t, NULL*/
-#include <stdint.h> /*int_t types*/
 #include <fcntl.h> /*open*/
 #include <unistd.h> /*close, ftruncate*/
 #include <sys/mman.h> /*mmap, munmap, msync*/
@@ -15,22 +14,22 @@
 #define TOTAL_DIR_ENTRIES 256
 #define MAX_DIR_CHILDREN 64
 
-#define DELETED_CHILD_ENTRY UINT16_MAX
+#define DELETED_CHILD_ENTRY (FAT_uint16_t)(~0)
 #define FREE_CHILD_ENTRY 0
 
-#define UNUSED_FAT_ENTRY UINT32_MAX
-#define LAST_FAT_ENTRY (UINT32_MAX - 1)
+#define UNUSED_FAT_ENTRY (FAT_uint32_t)(~0)
+#define LAST_FAT_ENTRY ((FAT_uint32_t)(~0) - 1)
 
 #define ROOT_WORKING_DIRECTORY 0
 
 typedef struct DirectoryEntry {
 	char filename[DIRECTORY_ENTRY_MAX_NAME];
-	uint8_t file_type;
-	uint8_t num_children;
-	uint16_t parent_directory;
-	uint32_t size;
-	uint32_t first_fat_entry;
-	uint16_t children[MAX_DIR_CHILDREN];
+	FAT_uint8_t file_type;
+	FAT_uint8_t num_children;
+	FAT_uint16_t parent_directory;
+	FAT_uint32_t size;
+	FAT_uint32_t first_fat_entry;
+	FAT_uint16_t children[MAX_DIR_CHILDREN];
 } DirectoryEntry;
 
 typedef struct FileBlock {
@@ -38,7 +37,7 @@ typedef struct FileBlock {
 } FileBlock;
 
 typedef struct FATTable {
-	uint32_t entries[TOTAL_BLOCKS];
+	FAT_uint32_t entries[TOTAL_BLOCKS];
 } FATTable;
 
 typedef struct DirectoryTable {
@@ -55,13 +54,13 @@ typedef struct FATBackingDisk {
 	size_t currently_mapped_size;
 	Disk* mmapped_disk;
 	int mmapped_file_descriptor;
-	uint16_t current_working_directory;
+	FAT_uint16_t current_working_directory;
 } FATBackingDisk;
 
 typedef struct FileHandle {
-	uint32_t current_pos;
-	uint32_t current_block_index;
-	uint32_t directory_entry;
+	FAT_uint32_t current_pos;
+	FAT_uint32_t current_block_index;
+	FAT_uint32_t directory_entry;
 	FAT backing_disk;
 } FileHandle;
 
@@ -129,7 +128,7 @@ int terminateFAT(FAT fat) {
 #define getEntryFromIndex(index) (&(backing_disk->mmapped_disk->directories.entries[index]))
 #define getBlockFromIndex(index) (&(backing_disk->mmapped_disk->blocks[index]))
 #define getNextFatEntry(entry) (backing_disk->mmapped_disk->fat.entries[entry])
-#define setNextFatEntry(entry,to) do { backing_disk->mmapped_disk->fat.entries[entry] = (uint32_t)to; } while(0)
+#define setNextFatEntry(entry,to) do { backing_disk->mmapped_disk->fat.entries[entry] = (FAT_uint32_t)to; } while(0)
 
 static void setupRootDir(FATBackingDisk* backing_disk) {
 	DirectoryEntry* entry = getEntryFromIndex(ROOT_WORKING_DIRECTORY);
@@ -176,9 +175,9 @@ static int findFreeBlock(FATBackingDisk* backing_disk) {
 	return -1;
 }
 
-static void addChildToFolder(DirectoryEntry* parent, uint16_t child) {
+static void addChildToFolder(DirectoryEntry* parent, FAT_uint16_t child) {
 	int i;
-	uint16_t* cur_child;
+	FAT_uint16_t* cur_child;
 	for(i = 0; i < MAX_DIR_CHILDREN; ++i) {
 		cur_child = &(parent->children[i]);
 		if(*cur_child == FREE_CHILD_ENTRY || *cur_child == DELETED_CHILD_ENTRY) {
@@ -201,11 +200,11 @@ static int initializeDirEntry(FATBackingDisk* backing_disk, int entry_id, const 
 	}
 	entry = getEntryFromIndex(entry_id);
 	strncpy(&entry->filename[0], filename, sizeof(entry->filename));
-	entry->first_fat_entry = (uint32_t)new_fat_entry;
+	entry->first_fat_entry = (FAT_uint32_t)new_fat_entry;
 	entry->size = 0;
-	entry->file_type = (uint8_t)file_type;
+	entry->file_type = (FAT_uint8_t)file_type;
 	entry->parent_directory = backing_disk->current_working_directory;
-	addChildToFolder(getEntryFromIndex(entry->parent_directory), (uint16_t)entry_id);
+	addChildToFolder(getEntryFromIndex(entry->parent_directory), (FAT_uint16_t)entry_id);
 	if(file_type == FAT_DIRECTORY) {
 		entry->num_children = 0;
 		memset(entry->children, 0, sizeof(entry->children));
@@ -227,7 +226,7 @@ Handle createFileFAT(FAT fat, const char* filename) {
 	if(used_entry != -1) {
 		handle->current_pos = 0;
 		handle->current_block_index = 0;
-		handle->directory_entry = (uint32_t)used_entry;
+		handle->directory_entry = (FAT_uint32_t)used_entry;
 	} else {
 		if(initializeDirEntry(backing_disk, free_entry, filename, FAT_FILE) == -1) {
 			free(handle);
@@ -236,7 +235,7 @@ Handle createFileFAT(FAT fat, const char* filename) {
 		}
 		handle->current_pos = 0;
 		handle->current_block_index = 0;
-		handle->directory_entry = (uint32_t)free_entry;
+		handle->directory_entry = (FAT_uint32_t)free_entry;
 	}
 	handle->backing_disk = fat;
 	return handle;
@@ -250,9 +249,9 @@ void freeHandle(Handle handle) {
 #define getDirectoryEntryFromHandle(handle) getEntryFromIndex(handle->directory_entry)
 #define getFirstFatEntryFromDirectoryEntry(entry) (entry->first_fat_entry)
 
-static void removeChildFromFolder(DirectoryEntry* parent, uint16_t child) {
+static void removeChildFromFolder(DirectoryEntry* parent, FAT_uint16_t child) {
 	int i;
-	uint16_t* cur_child;
+	FAT_uint16_t* cur_child;
 	for(i = 0; i < MAX_DIR_CHILDREN; ++i) {
 		cur_child = &(parent->children[i]);
 		if(*cur_child == child) {
@@ -266,8 +265,8 @@ static void removeChildFromFolder(DirectoryEntry* parent, uint16_t child) {
 
 int eraseFileFAT(FAT fat, const char* filename) {
 	DirectoryEntry* entry;
-	uint32_t current_fat_entry;
-	uint32_t new_fat_entry;
+	FAT_uint32_t current_fat_entry;
+	FAT_uint32_t new_fat_entry;
 	FATBackingDisk* backing_disk = (FATBackingDisk*)fat;
 	int entry_id = findDirEntry(backing_disk, filename, NULL, FAT_FILE);
 	if(entry_id == -1) {
@@ -283,14 +282,14 @@ int eraseFileFAT(FAT fat, const char* filename) {
 		current_fat_entry = new_fat_entry;
 	}
 	if(entry->parent_directory != ROOT_WORKING_DIRECTORY)
-		removeChildFromFolder(getEntryFromIndex(entry->parent_directory), (uint16_t)entry_id);
+		removeChildFromFolder(getEntryFromIndex(entry->parent_directory), (FAT_uint16_t)entry_id);
 	memset(entry, 0, sizeof(DirectoryEntry));
 	return 0;
 }
 
 int eraseFileFATAt(Handle file) {
-	uint32_t current_fat_entry;
-	uint32_t new_fat_entry;
+	FAT_uint32_t current_fat_entry;
+	FAT_uint32_t new_fat_entry;
 	FileHandle* handle = (FileHandle*)file;
 	FATBackingDisk* backing_disk = getBackingDiskFromHandle(handle);
 	DirectoryEntry* entry = getDirectoryEntryFromHandle(handle);
@@ -302,16 +301,16 @@ int eraseFileFATAt(Handle file) {
 		current_fat_entry = new_fat_entry;
 	}
 	if(entry->parent_directory != ROOT_WORKING_DIRECTORY)
-		removeChildFromFolder(getEntryFromIndex(entry->parent_directory), (uint16_t)handle->directory_entry);
+		removeChildFromFolder(getEntryFromIndex(entry->parent_directory), (FAT_uint16_t)handle->directory_entry);
 	memset(entry, 0, sizeof(DirectoryEntry));
 	return 0;
 }
 
-static FileBlock* getCurrentBlockFromHandle(FileHandle* handle, uint32_t* return_fat_entry) {
-	uint32_t i;
+static FileBlock* getCurrentBlockFromHandle(FileHandle* handle, FAT_uint32_t* return_fat_entry) {
+	FAT_uint32_t i;
 	FATBackingDisk* backing_disk = getBackingDiskFromHandle(handle);
 	DirectoryEntry* entry = getDirectoryEntryFromHandle(handle);
-	uint32_t current_fat_entry = getFirstFatEntryFromDirectoryEntry(entry);
+	FAT_uint32_t current_fat_entry = getFirstFatEntryFromDirectoryEntry(entry);
 	for(i = 0; i < handle->current_block_index; i++) {
 		assert(current_fat_entry != UNUSED_FAT_ENTRY);
 		if(current_fat_entry == LAST_FAT_ENTRY)
@@ -322,10 +321,10 @@ static FileBlock* getCurrentBlockFromHandle(FileHandle* handle, uint32_t* return
 	return getBlockFromIndex(current_fat_entry);
 }
 
-static FileBlock* getOrAllocateNewBlock(FATBackingDisk* backing_disk, uint32_t* current_fat_entry) {
+static FileBlock* getOrAllocateNewBlock(FATBackingDisk* backing_disk, FAT_uint32_t* current_fat_entry) {
 	FileBlock* new_block;
 	int new_block_index;
-	uint32_t next_fat_entry = getNextFatEntry(*current_fat_entry);
+	FAT_uint32_t next_fat_entry = getNextFatEntry(*current_fat_entry);
 	if(next_fat_entry != LAST_FAT_ENTRY) {
 		*current_fat_entry = next_fat_entry;
 		return getBlockFromIndex(next_fat_entry);
@@ -334,7 +333,7 @@ static FileBlock* getOrAllocateNewBlock(FATBackingDisk* backing_disk, uint32_t* 
 	if(new_block_index == -1)
 		return NULL;
 	setNextFatEntry(*current_fat_entry, new_block_index);
-	*current_fat_entry = (uint32_t)new_block_index;
+	*current_fat_entry = (FAT_uint32_t)new_block_index;
 	setNextFatEntry(new_block_index, LAST_FAT_ENTRY);
 	new_block = getBlockFromIndex(new_block_index);
 	memset(new_block, 0, sizeof(new_block->buffer));
@@ -352,7 +351,7 @@ do {\
 
 #define doFileNeedNewBlock(handle) (handle->current_pos == BLOCK_BUFFER_SIZE + 1)
 
-FileBlock* allocateNewBlockForHandleFromENOSPCState(FileHandle* handle, uint32_t* return_fat_entry) {
+FileBlock* allocateNewBlockForHandleFromENOSPCState(FileHandle* handle, FAT_uint32_t* return_fat_entry) {
 	FileBlock* current_block;
 	--(handle->current_block_index);
 	current_block = getCurrentBlockFromHandle(handle, return_fat_entry);
@@ -367,16 +366,16 @@ FileBlock* allocateNewBlockForHandleFromENOSPCState(FileHandle* handle, uint32_t
 }
 
 int writeFAT(Handle to, const void* in, size_t size) {
-	uint32_t current_fat_entry;
+	FAT_uint32_t current_fat_entry;
 	FileHandle* handle = (FileHandle*)to;
 	size_t written = 0;
-	uint32_t pos;
+	FAT_uint32_t pos;
 	FATBackingDisk* backing_disk = getBackingDiskFromHandle(handle);
-	uint32_t absolute_pos;
+	FAT_uint32_t absolute_pos;
 	FileBlock* block = getCurrentBlockFromHandle(handle, &current_fat_entry);
 	const char* cur = (const char*)in;
 	size_t to_write;
-	uint32_t iterated_blocks = 0;
+	FAT_uint32_t iterated_blocks = 0;
 	if(doFileNeedNewBlock(handle)) {
 		if((block = allocateNewBlockForHandleFromENOSPCState(handle, &current_fat_entry)) == NULL) {
 			errno = ENOSPC;
@@ -411,17 +410,17 @@ int writeFAT(Handle to, const void* in, size_t size) {
 }
 
 int readFAT(Handle from, void* out, size_t size) {
-	uint32_t current_fat_entry;
+	FAT_uint32_t current_fat_entry;
 	FileHandle* handle = (FileHandle*)from;
 	FATBackingDisk* backing_disk = getBackingDiskFromHandle(handle);
-	uint32_t absolute_pos;
-	uint32_t file_size = getTotalSizeFromHandle(handle);
-	uint32_t total_read = 0;
+	FAT_uint32_t absolute_pos;
+	FAT_uint32_t file_size = getTotalSizeFromHandle(handle);
+	FAT_uint32_t total_read = 0;
 	FileBlock* block = getCurrentBlockFromHandle(handle, &current_fat_entry);
 	char* cur = (char*)out;
 	size_t to_read;
-	uint32_t iterated_blocks = 0;
-	uint32_t pos;
+	FAT_uint32_t iterated_blocks = 0;
+	FAT_uint32_t pos;
 	if(doFileNeedNewBlock(handle)) {
 		if((block = allocateNewBlockForHandleFromENOSPCState(handle, &current_fat_entry)) == NULL) {
 			errno = ENOSPC;
@@ -455,8 +454,8 @@ int readFAT(Handle from, void* out, size_t size) {
 	return (int)total_read;
 }
 
-int seekFAT(Handle file, int32_t offset, SeekWhence whence) {
-	int64_t new_pos;
+int seekFAT(Handle file, FAT_int32_t offset, SeekWhence whence) {
+	FAT_uint32_t new_pos;
 	FileHandle* handle = (FileHandle*)file;
 	FATBackingDisk* backing_disk = getBackingDiskFromHandle(handle);
 	if(whence > FAT_SEEK_END)
@@ -468,7 +467,7 @@ int seekFAT(Handle file, int32_t offset, SeekWhence whence) {
 			new_pos = offset;
 			break;
 		case FAT_SEEK_CUR: {
-			new_pos = getAbsolutePosFromHandle(handle) + (int64_t)offset;
+			new_pos = getAbsolutePosFromHandle(handle) + (FAT_int32_t)offset;
 			if(new_pos > getTotalSizeFromHandle(handle))
 				return -1;
 			break;
@@ -484,7 +483,7 @@ int seekFAT(Handle file, int32_t offset, SeekWhence whence) {
 			break;
 		}
 	}
-	updateFileHandlePositionFromAbsolutePosition(handle, (uint32_t)new_pos);
+	updateFileHandlePositionFromAbsolutePosition(handle, (FAT_uint32_t)new_pos);
 	return 0;
 }
 
@@ -512,7 +511,7 @@ int eraseDirFAT(FAT fat, const char* dirname) {
 	if(entry->num_children > 0)
 		return -1;
 	if(entry->parent_directory != ROOT_WORKING_DIRECTORY)
-		removeChildFromFolder(getEntryFromIndex(entry->parent_directory), (uint16_t)entry_id);
+		removeChildFromFolder(getEntryFromIndex(entry->parent_directory), (FAT_uint16_t)entry_id);
 	memset(entry, 0, sizeof(DirectoryEntry));
 	return 0;
 }
@@ -535,7 +534,7 @@ int changeDirFAT(FAT fat, const char* new_dirname) {
 	entry_id = findDirEntry(backing_disk, new_dirname, NULL, FAT_DIRECTORY);
 	if(entry_id == -1)
 		return -1;
-	backing_disk->current_working_directory = (uint16_t)entry_id;
+	backing_disk->current_working_directory = (FAT_uint16_t)entry_id;
 	return 0;
 }
 

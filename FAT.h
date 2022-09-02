@@ -1,7 +1,12 @@
 #ifndef FAT_H
 #define FAT_H
 #include <stddef.h> /*size_t, NULL*/
-#include <stdint.h> /*int_t types*/
+typedef signed char FAT_int8_t;
+typedef unsigned char FAT_uint8_t;
+typedef short FAT_int16_t;
+typedef unsigned short FAT_uint16_t;
+typedef int FAT_int32_t;
+typedef unsigned int FAT_uint32_t;
 
 /*
 * Handle representing a virtual disk that was opened by the program.
@@ -103,7 +108,7 @@ int readFAT(Handle from, void* out, size_t size);
 /*
 * Change the position of the cursor in the passed file handle.
 */
-int seekFAT(Handle file, int32_t offset, SeekWhence whence);
+int seekFAT(Handle file, FAT_int32_t offset, SeekWhence whence);
 
 /*
 * Creates a directory in the given fat with the passed name.
